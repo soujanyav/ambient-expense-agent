@@ -1,0 +1,48 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "necessity_under_100",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "I spent $45 on groceries today. Please log this expense."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "entertainment_under_100",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "I spent $60 on concert tickets today."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "necessity_over_100",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "I paid $150 for a desk chair today."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "monthly_report_and_insights",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Show me a summary of all my expenses for this month along with category breakdowns and savings insights."
+          }
+        ]
+      }
+    }
+  ]
+}

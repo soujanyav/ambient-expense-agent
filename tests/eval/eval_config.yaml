@@ -1,0 +1,32 @@
+metrics_to_run:
+  - custom_response_quality
+  - query_understanding_and_relevance
+
+custom_metrics:
+  - name: query_understanding_and_relevance
+    prompt_template: |
+      You are an expert evaluator. Evaluate whether the AI assistant correctly understood the user's query and provided a relevant, accurate, and helpful response.
+
+      User Query: {prompt}
+      Assistant Response: {response}
+      Execution Trace: {agent_data}
+
+      Rate the response on a scale of 1 to 5:
+      5 - Perfectly understood the query, applied proper policy logic, and provided a clear, relevant answer.
+      4 - Understood the query well; response is relevant with minor flaws.
+      3 - Partially understood the query; response is somewhat relevant.
+      2 - Misunderstood major parts of the query or responded off-topic.
+      1 - Completely failed to understand the query.
+
+      Return JSON:
+      {"score": <1|2|3|4|5>, "explanation": "<detailed rationale>"}
+
+  # Default: local LLM-as-judge (see response_quality.py).
+  - name: custom_response_quality
+    custom_function_file: response_quality.py
+
+  - name: agent_turn_count
+    custom_function: |
+      def evaluate(instance):
+          turns = (instance.get("agent_data") or {}).get("turns", [])
+          return {'score': len(turns)}

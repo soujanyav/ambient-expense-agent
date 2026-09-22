@@ -1,0 +1,554 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "case_01",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "I spent $25 on groceries at Trader Joe's."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_02",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $45 for pharmacy medication."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_03",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought milk and bread for $12."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_04",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Monthly bus transit pass for $75."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_05",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Water utility bill payment of $65."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_06",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Electricity bill for $88."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_07",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $30 for gas refill."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_08",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought doctor-prescribed eye drops for $18."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_09",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $50 for home internet service."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_10",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Subway monthly pass for $90."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_11",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought household cleaning supplies for $35."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_12",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $15 for laundry detergent."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_13",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $150 for an ergonomic desk chair for work."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_14",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Clinic consultation and blood test for $210."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_15",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Car brake repair service cost $340."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_16",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Annual dental checkup fee of $175."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_17",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $120 for prescription eyeglasses."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_18",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Plumbing emergency repair for $280."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_19",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $450 for quarterly home heating bill."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_20",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Annual refrigerator maintenance service cost $160."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_21",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Replaced broken home water heater valve for $195."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_22",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought orthopedic shoes for work for $130."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_23",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $220 for annual auto insurance installment."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_24",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought winter coat for cold weather for $110."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_25",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought two movie tickets for $30."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_26",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $60 for concert tickets."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_27",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Dinner out at a fancy sushi bar for $85."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_28",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought a video game on Steam for $49."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_29",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $25 for a monthly gaming subscription."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_30",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Spa massage voucher for $70."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_31",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought a designer coffee mug for $35."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_32",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $40 for escape room ticket."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_33",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought cocktail drinks at a rooftop lounge for $65."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_34",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Purchased a luxury scented candle for $45."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_35",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought VIP music festival pass for $250."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_36",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Purchased a high-end smartwatch for $399."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_37",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Resort weekend stay booking for $450."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_38",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought a new gaming console for $499."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_39",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Fine dining tasting menu for two for $320."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_40",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought designer leather jacket for $280."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_41",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Purchased wireless noise-canceling headphones for $299."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_42",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought golf club set for $550."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_43",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Paid $180 for amusement park annual pass."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_44",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Bought luxury spa day package for $220."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_45",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Show me a summary of my expenses for this month with financial advice."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_46",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Give me a category-wise spend breakdown for July and recommendations to save money."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_47",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Which expenses currently need review this month?"
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_48",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Update expense #1 amount to $55."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_49",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Update expense #2 category to necessity."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "case_50",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Show all auto-approved expenses for the month."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,1854 @@
+{
+  "eval_cases": [
+    {
+      "prompt": {
+        "parts": [
+          {
+            "text": "I spent $45 on groceries today. Please log this expense."
+          }
+        ],
+        "role": "user"
+      },
+      "responses": [
+        {
+          "response": {
+            "parts": [
+              {
+                "text": "I have successfully recorded your expense of $45 for groceries as a **necessity**. \n\nSince the amount is under $100 and categorized as a necessity, it has been **auto-approved**. \n\n* **Expense ID:** #3\n* **Description:** groceries\n* **Category:** necessity\n* **Amount:** $45.00\n* **Status:** auto_approved"
+              }
+            ],
+            "role": "model"
+          }
+        }
+      ],
+      "eval_case_id": "necessity_under_100",
+      "agent_data": {
+        "agents": {
+          "ambient_expense_agent": {
+            "agent_id": "ambient_expense_agent",
+            "agent_type": "LlmAgent",
+            "description": "",
+            "instruction": "You are the Ambient Expense Validation Agent.\nYour responsibilities:\n1. **Log Expenses**: Receive expense details, classify them into 'necessity' vs 'entertainment'/'luxury' (asking user if ambiguous), and record them.\n2. **Policy Evaluation**:\n   - Expenses < $100 for necessities are 'auto_approved'.\n   - Expenses >= $100 OR for entertainment/luxury are marked 'needs_review'.\n3. **Update Expenses**: Allow users to modify existing expenses or save pending updates for monthly review.\n4. **Monthly Summary & Insights**: Provide monthly spend reports displaying:\n   - Itemized expenses grouped by status (highlighting 'needs_review').\n   - Category-wise spend totals.\n   - Actionable financial advice on saving money and optimal fund allocation.\n\nUtilize your sub-agents and tools to perform these tasks cleanly and accurately.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Records a new expense in the system after evaluating policy rules.\n\nArgs:\n    description: Description of the expense (e.g. 'Groceries at Whole Foods').\n    amount: Dollar amount of the expense.\n    category: Category of the expense ('necessity', 'entertainment', or 'luxury').\n    month: Optional target month in 'YYYY-MM' format. Defaults to current month.\n\nReturns:\n    A dictionary containing the saved expense details and policy status.",
+                    "name": "record_expense",
+                    "parameters": {
+                      "properties": {
+                        "description": {
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "type": "STRING"
+                        },
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "amount",
+                        "category"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates an existing expense entry and re-evaluates approval status.\n\nArgs:\n    expense_id: The ID of the expense record to update.\n    description: New description (optional).\n    amount: New dollar amount (optional).\n    category: New category ('necessity', 'entertainment', 'luxury') (optional).\n\nReturns:\n    A dictionary with the updated expense record.",
+                    "name": "update_expense_record",
+                    "parameters": {
+                      "properties": {
+                        "expense_id": {
+                          "type": "INTEGER"
+                        },
+                        "description": {
+                          "default": "",
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "nullable": true,
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "expense_id"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves all expenses filed for a given month with category totals and review items.\n\nArgs:\n    month: Target month string in 'YYYY-MM' format. Leave empty for current month.\n\nReturns:\n    Summary report containing itemized expenses, category totals, and items needing review.",
+                    "name": "get_monthly_expenses_report",
+                    "parameters": {
+                      "properties": {
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Checks stored user classification preference for a category name.\n\nArgs:\n    category_name: Name of the category (e.g. 'concert tickets', 'groceries').\n\nReturns:\n    Dictionary with classification if known, or status 'unknown'.",
+                    "name": "get_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves user preference for how a category should be classified ('necessity' or 'entertainment').\n\nArgs:\n    category_name: The category name to save rule for.\n    classification: 'necessity' or 'entertainment'/'luxury'.\n\nReturns:\n    Confirmation dictionary.",
+                    "name": "save_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        },
+                        "classification": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name",
+                        "classification"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": [
+              "classifier_agent",
+              "evaluator_agent",
+              "advisor_agent"
+            ]
+          },
+          "classifier_agent": {
+            "agent_id": "classifier_agent",
+            "agent_type": "LlmAgent",
+            "description": "Classifies expense descriptions into necessity vs entertainment/luxury and learns user category preferences.",
+            "instruction": "You analyze expense descriptions and determine their category: 'necessity', 'entertainment', or 'luxury'.\nFirst, use `get_category_rule` to check if the user previously specified a rule for this category.\nIf the description is ambiguous, ask the user for clarification on whether it is a necessity or entertainment/luxury.\nWhen the user clarifies, use `save_category_rule` to persist their preference for future expenses.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Checks stored user classification preference for a category name.\n\nArgs:\n    category_name: Name of the category (e.g. 'concert tickets', 'groceries').\n\nReturns:\n    Dictionary with classification if known, or status 'unknown'.",
+                    "name": "get_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves user preference for how a category should be classified ('necessity' or 'entertainment').\n\nArgs:\n    category_name: The category name to save rule for.\n    classification: 'necessity' or 'entertainment'/'luxury'.\n\nReturns:\n    Confirmation dictionary.",
+                    "name": "save_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        },
+                        "classification": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name",
+                        "classification"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          },
+          "evaluator_agent": {
+            "agent_id": "evaluator_agent",
+            "agent_type": "LlmAgent",
+            "description": "Records and updates expense entries based on policy validation rules.",
+            "instruction": "You record and update expense entries in the database.\nPolicy Rules:\n- Expense < $100 AND category == 'necessity' -> auto_approved\n- Expense >= $100 OR category in ('entertainment', 'luxury') -> needs_review\nUse `record_expense` to log new expenses and `update_expense_record` to modify existing ones.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Records a new expense in the system after evaluating policy rules.\n\nArgs:\n    description: Description of the expense (e.g. 'Groceries at Whole Foods').\n    amount: Dollar amount of the expense.\n    category: Category of the expense ('necessity', 'entertainment', or 'luxury').\n    month: Optional target month in 'YYYY-MM' format. Defaults to current month.\n\nReturns:\n    A dictionary containing the saved expense details and policy status.",
+                    "name": "record_expense",
+                    "parameters": {
+                      "properties": {
+                        "description": {
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "type": "STRING"
+                        },
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "amount",
+                        "category"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates an existing expense entry and re-evaluates approval status.\n\nArgs:\n    expense_id: The ID of the expense record to update.\n    description: New description (optional).\n    amount: New dollar amount (optional).\n    category: New category ('necessity', 'entertainment', 'luxury') (optional).\n\nReturns:\n    A dictionary with the updated expense record.",
+                    "name": "update_expense_record",
+                    "parameters": {
+                      "properties": {
+                        "expense_id": {
+                          "type": "INTEGER"
+                        },
+                        "description": {
+                          "default": "",
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "nullable": true,
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "expense_id"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          },
+          "advisor_agent": {
+            "agent_id": "advisor_agent",
+            "agent_type": "LlmAgent",
+            "description": "Analyzes monthly spending reports and delivers personalized money-saving insights and budget guidance.",
+            "instruction": "You generate monthly spending insights and financial advice.\nFetch monthly reports using `get_monthly_expenses_report`.\nAnalyze category spending (necessities vs. entertainment/luxury), highlight expenses marked as 'needs_review', and provide actionable recommendations on:\n1. Potential money-saving opportunities.\n2. Areas with high discretionary spend.\n3. Where best to channel remaining funds or savings.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves all expenses filed for a given month with category totals and review items.\n\nArgs:\n    month: Target month string in 'YYYY-MM' format. Leave empty for current month.\n\nReturns:\n    Summary report containing itemized expenses, category totals, and items needing review.",
+                    "name": "get_monthly_expenses_report",
+                    "parameters": {
+                      "properties": {
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "turn_id": "turn_0",
+            "events": [
+              {
+                "author": "ambient_expense_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-faaf5773-fe0a-45a7-a98f-8bb037094ed5",
+                        "args": {
+                          "agent_name": "classifier_agent"
+                        },
+                        "name": "transfer_to_agent"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "ambient_expense_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-faaf5773-fe0a-45a7-a98f-8bb037094ed5",
+                        "name": "transfer_to_agent",
+                        "response": {
+                          "result": null
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-bb07b5f0-984b-4d46-be9e-54b37628b29b",
+                        "args": {
+                          "category_name": "groceries"
+                        },
+                        "name": "get_category_rule"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-bb07b5f0-984b-4d46-be9e-54b37628b29b",
+                        "name": "get_category_rule",
+                        "response": {
+                          "category": "groceries",
+                          "classification": "necessity",
+                          "status": "found"
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-127c114c-85cc-449b-905d-a0e94b592911",
+                        "args": {
+                          "agent_name": "evaluator_agent"
+                        },
+                        "name": "transfer_to_agent"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-127c114c-85cc-449b-905d-a0e94b592911",
+                        "name": "transfer_to_agent",
+                        "response": {
+                          "result": null
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "evaluator_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-720e79f4-8c2e-4538-a67c-894c35a34543",
+                        "args": {
+                          "category": "necessity",
+                          "description": "groceries",
+                          "amount": 45
+                        },
+                        "name": "record_expense"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "evaluator_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-720e79f4-8c2e-4538-a67c-894c35a34543",
+                        "name": "record_expense",
+                        "response": {
+                          "status": "success",
+                          "message": "Recorded expense #3 as 'auto_approved'",
+                          "expense": {
+                            "id": 3,
+                            "description": "groceries",
+                            "amount": 45,
+                            "category": "necessity",
+                            "status": "auto_approved",
+                            "month": "2026-07",
+                            "created_at": "2026-07-20T09:16:55.918261+00:00",
+                            "updated_at": "2026-07-20T09:16:55.918261+00:00"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "evaluator_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "text": "I have successfully recorded your expense of $45 for groceries as a **necessity**. \n\nSince the amount is under $100 and categorized as a necessity, it has been **auto-approved**. \n\n* **Expense ID:** #3\n* **Description:** groceries\n* **Category:** necessity\n* **Amount:** $45.00\n* **Status:** auto_approved"
+                    }
+                  ],
+                  "role": "model"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "prompt": {
+        "parts": [
+          {
+            "text": "I spent $60 on concert tickets today."
+          }
+        ],
+        "role": "user"
+      },
+      "responses": [
+        {
+          "response": {
+            "parts": [
+              {
+                "text": "I have recorded your $60 expense for \"Concert tickets\" under the category **entertainment**. \n\nSince all entertainment expenses require approval according to policy, its status is currently set to **needs_review**."
+              }
+            ],
+            "role": "model"
+          }
+        }
+      ],
+      "eval_case_id": "entertainment_under_100",
+      "agent_data": {
+        "agents": {
+          "ambient_expense_agent": {
+            "agent_id": "ambient_expense_agent",
+            "agent_type": "LlmAgent",
+            "description": "",
+            "instruction": "You are the Ambient Expense Validation Agent.\nYour responsibilities:\n1. **Log Expenses**: Receive expense details, classify them into 'necessity' vs 'entertainment'/'luxury' (asking user if ambiguous), and record them.\n2. **Policy Evaluation**:\n   - Expenses < $100 for necessities are 'auto_approved'.\n   - Expenses >= $100 OR for entertainment/luxury are marked 'needs_review'.\n3. **Update Expenses**: Allow users to modify existing expenses or save pending updates for monthly review.\n4. **Monthly Summary & Insights**: Provide monthly spend reports displaying:\n   - Itemized expenses grouped by status (highlighting 'needs_review').\n   - Category-wise spend totals.\n   - Actionable financial advice on saving money and optimal fund allocation.\n\nUtilize your sub-agents and tools to perform these tasks cleanly and accurately.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Records a new expense in the system after evaluating policy rules.\n\nArgs:\n    description: Description of the expense (e.g. 'Groceries at Whole Foods').\n    amount: Dollar amount of the expense.\n    category: Category of the expense ('necessity', 'entertainment', or 'luxury').\n    month: Optional target month in 'YYYY-MM' format. Defaults to current month.\n\nReturns:\n    A dictionary containing the saved expense details and policy status.",
+                    "name": "record_expense",
+                    "parameters": {
+                      "properties": {
+                        "description": {
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "type": "STRING"
+                        },
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "amount",
+                        "category"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates an existing expense entry and re-evaluates approval status.\n\nArgs:\n    expense_id: The ID of the expense record to update.\n    description: New description (optional).\n    amount: New dollar amount (optional).\n    category: New category ('necessity', 'entertainment', 'luxury') (optional).\n\nReturns:\n    A dictionary with the updated expense record.",
+                    "name": "update_expense_record",
+                    "parameters": {
+                      "properties": {
+                        "expense_id": {
+                          "type": "INTEGER"
+                        },
+                        "description": {
+                          "default": "",
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "nullable": true,
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "expense_id"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves all expenses filed for a given month with category totals and review items.\n\nArgs:\n    month: Target month string in 'YYYY-MM' format. Leave empty for current month.\n\nReturns:\n    Summary report containing itemized expenses, category totals, and items needing review.",
+                    "name": "get_monthly_expenses_report",
+                    "parameters": {
+                      "properties": {
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Checks stored user classification preference for a category name.\n\nArgs:\n    category_name: Name of the category (e.g. 'concert tickets', 'groceries').\n\nReturns:\n    Dictionary with classification if known, or status 'unknown'.",
+                    "name": "get_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves user preference for how a category should be classified ('necessity' or 'entertainment').\n\nArgs:\n    category_name: The category name to save rule for.\n    classification: 'necessity' or 'entertainment'/'luxury'.\n\nReturns:\n    Confirmation dictionary.",
+                    "name": "save_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        },
+                        "classification": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name",
+                        "classification"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": [
+              "classifier_agent",
+              "evaluator_agent",
+              "advisor_agent"
+            ]
+          },
+          "classifier_agent": {
+            "agent_id": "classifier_agent",
+            "agent_type": "LlmAgent",
+            "description": "Classifies expense descriptions into necessity vs entertainment/luxury and learns user category preferences.",
+            "instruction": "You analyze expense descriptions and determine their category: 'necessity', 'entertainment', or 'luxury'.\nFirst, use `get_category_rule` to check if the user previously specified a rule for this category.\nIf the description is ambiguous, ask the user for clarification on whether it is a necessity or entertainment/luxury.\nWhen the user clarifies, use `save_category_rule` to persist their preference for future expenses.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Checks stored user classification preference for a category name.\n\nArgs:\n    category_name: Name of the category (e.g. 'concert tickets', 'groceries').\n\nReturns:\n    Dictionary with classification if known, or status 'unknown'.",
+                    "name": "get_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves user preference for how a category should be classified ('necessity' or 'entertainment').\n\nArgs:\n    category_name: The category name to save rule for.\n    classification: 'necessity' or 'entertainment'/'luxury'.\n\nReturns:\n    Confirmation dictionary.",
+                    "name": "save_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        },
+                        "classification": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name",
+                        "classification"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          },
+          "evaluator_agent": {
+            "agent_id": "evaluator_agent",
+            "agent_type": "LlmAgent",
+            "description": "Records and updates expense entries based on policy validation rules.",
+            "instruction": "You record and update expense entries in the database.\nPolicy Rules:\n- Expense < $100 AND category == 'necessity' -> auto_approved\n- Expense >= $100 OR category in ('entertainment', 'luxury') -> needs_review\nUse `record_expense` to log new expenses and `update_expense_record` to modify existing ones.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Records a new expense in the system after evaluating policy rules.\n\nArgs:\n    description: Description of the expense (e.g. 'Groceries at Whole Foods').\n    amount: Dollar amount of the expense.\n    category: Category of the expense ('necessity', 'entertainment', or 'luxury').\n    month: Optional target month in 'YYYY-MM' format. Defaults to current month.\n\nReturns:\n    A dictionary containing the saved expense details and policy status.",
+                    "name": "record_expense",
+                    "parameters": {
+                      "properties": {
+                        "description": {
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "type": "STRING"
+                        },
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "amount",
+                        "category"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates an existing expense entry and re-evaluates approval status.\n\nArgs:\n    expense_id: The ID of the expense record to update.\n    description: New description (optional).\n    amount: New dollar amount (optional).\n    category: New category ('necessity', 'entertainment', 'luxury') (optional).\n\nReturns:\n    A dictionary with the updated expense record.",
+                    "name": "update_expense_record",
+                    "parameters": {
+                      "properties": {
+                        "expense_id": {
+                          "type": "INTEGER"
+                        },
+                        "description": {
+                          "default": "",
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "nullable": true,
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "expense_id"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          },
+          "advisor_agent": {
+            "agent_id": "advisor_agent",
+            "agent_type": "LlmAgent",
+            "description": "Analyzes monthly spending reports and delivers personalized money-saving insights and budget guidance.",
+            "instruction": "You generate monthly spending insights and financial advice.\nFetch monthly reports using `get_monthly_expenses_report`.\nAnalyze category spending (necessities vs. entertainment/luxury), highlight expenses marked as 'needs_review', and provide actionable recommendations on:\n1. Potential money-saving opportunities.\n2. Areas with high discretionary spend.\n3. Where best to channel remaining funds or savings.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves all expenses filed for a given month with category totals and review items.\n\nArgs:\n    month: Target month string in 'YYYY-MM' format. Leave empty for current month.\n\nReturns:\n    Summary report containing itemized expenses, category totals, and items needing review.",
+                    "name": "get_monthly_expenses_report",
+                    "parameters": {
+                      "properties": {
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "turn_id": "turn_0",
+            "events": [
+              {
+                "author": "ambient_expense_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-16fc9602-96c6-4652-8270-08346e75b84b",
+                        "args": {
+                          "agent_name": "classifier_agent"
+                        },
+                        "name": "transfer_to_agent"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "ambient_expense_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-16fc9602-96c6-4652-8270-08346e75b84b",
+                        "name": "transfer_to_agent",
+                        "response": {
+                          "result": null
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-c1a13fee-87c0-4959-84a2-7a25a7fae984",
+                        "args": {
+                          "category_name": "concert tickets"
+                        },
+                        "name": "get_category_rule"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-c1a13fee-87c0-4959-84a2-7a25a7fae984",
+                        "name": "get_category_rule",
+                        "response": {
+                          "category": "concert tickets",
+                          "status": "unknown"
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-136c3366-ec2a-42a1-8504-701dafcd533c",
+                        "args": {
+                          "agent_name": "evaluator_agent"
+                        },
+                        "name": "transfer_to_agent"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-136c3366-ec2a-42a1-8504-701dafcd533c",
+                        "name": "transfer_to_agent",
+                        "response": {
+                          "result": null
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "evaluator_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-24b6b4a8-4946-4a80-97cd-b8c27382705b",
+                        "args": {
+                          "category": "entertainment",
+                          "description": "Concert tickets",
+                          "amount": 60
+                        },
+                        "name": "record_expense"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "evaluator_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-24b6b4a8-4946-4a80-97cd-b8c27382705b",
+                        "name": "record_expense",
+                        "response": {
+                          "status": "success",
+                          "message": "Recorded expense #4 as 'needs_review'",
+                          "expense": {
+                            "id": 4,
+                            "description": "Concert tickets",
+                            "amount": 60,
+                            "category": "entertainment",
+                            "status": "needs_review",
+                            "month": "2026-07",
+                            "created_at": "2026-07-20T09:17:19.403580+00:00",
+                            "updated_at": "2026-07-20T09:17:19.403580+00:00"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "evaluator_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "text": "I have recorded your $60 expense for \"Concert tickets\" under the category **entertainment**. \n\nSince all entertainment expenses require approval according to policy, its status is currently set to **needs_review**."
+                    }
+                  ],
+                  "role": "model"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "prompt": {
+        "parts": [
+          {
+            "text": "I paid $150 for a desk chair today."
+          }
+        ],
+        "role": "user"
+      },
+      "responses": [
+        {
+          "response": {
+            "parts": [
+              {
+                "text": "Is this desk chair purchase a necessity (for example, for your work or study) or would you classify it as entertainment or luxury? Let me know so I can categorize it correctly and save your preference for future desk chair purchases!"
+              }
+            ],
+            "role": "model"
+          }
+        }
+      ],
+      "eval_case_id": "necessity_over_100",
+      "agent_data": {
+        "agents": {
+          "ambient_expense_agent": {
+            "agent_id": "ambient_expense_agent",
+            "agent_type": "LlmAgent",
+            "description": "",
+            "instruction": "You are the Ambient Expense Validation Agent.\nYour responsibilities:\n1. **Log Expenses**: Receive expense details, classify them into 'necessity' vs 'entertainment'/'luxury' (asking user if ambiguous), and record them.\n2. **Policy Evaluation**:\n   - Expenses < $100 for necessities are 'auto_approved'.\n   - Expenses >= $100 OR for entertainment/luxury are marked 'needs_review'.\n3. **Update Expenses**: Allow users to modify existing expenses or save pending updates for monthly review.\n4. **Monthly Summary & Insights**: Provide monthly spend reports displaying:\n   - Itemized expenses grouped by status (highlighting 'needs_review').\n   - Category-wise spend totals.\n   - Actionable financial advice on saving money and optimal fund allocation.\n\nUtilize your sub-agents and tools to perform these tasks cleanly and accurately.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Records a new expense in the system after evaluating policy rules.\n\nArgs:\n    description: Description of the expense (e.g. 'Groceries at Whole Foods').\n    amount: Dollar amount of the expense.\n    category: Category of the expense ('necessity', 'entertainment', or 'luxury').\n    month: Optional target month in 'YYYY-MM' format. Defaults to current month.\n\nReturns:\n    A dictionary containing the saved expense details and policy status.",
+                    "name": "record_expense",
+                    "parameters": {
+                      "properties": {
+                        "description": {
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "type": "STRING"
+                        },
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "amount",
+                        "category"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates an existing expense entry and re-evaluates approval status.\n\nArgs:\n    expense_id: The ID of the expense record to update.\n    description: New description (optional).\n    amount: New dollar amount (optional).\n    category: New category ('necessity', 'entertainment', 'luxury') (optional).\n\nReturns:\n    A dictionary with the updated expense record.",
+                    "name": "update_expense_record",
+                    "parameters": {
+                      "properties": {
+                        "expense_id": {
+                          "type": "INTEGER"
+                        },
+                        "description": {
+                          "default": "",
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "nullable": true,
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "expense_id"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves all expenses filed for a given month with category totals and review items.\n\nArgs:\n    month: Target month string in 'YYYY-MM' format. Leave empty for current month.\n\nReturns:\n    Summary report containing itemized expenses, category totals, and items needing review.",
+                    "name": "get_monthly_expenses_report",
+                    "parameters": {
+                      "properties": {
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Checks stored user classification preference for a category name.\n\nArgs:\n    category_name: Name of the category (e.g. 'concert tickets', 'groceries').\n\nReturns:\n    Dictionary with classification if known, or status 'unknown'.",
+                    "name": "get_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves user preference for how a category should be classified ('necessity' or 'entertainment').\n\nArgs:\n    category_name: The category name to save rule for.\n    classification: 'necessity' or 'entertainment'/'luxury'.\n\nReturns:\n    Confirmation dictionary.",
+                    "name": "save_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        },
+                        "classification": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name",
+                        "classification"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": [
+              "classifier_agent",
+              "evaluator_agent",
+              "advisor_agent"
+            ]
+          },
+          "classifier_agent": {
+            "agent_id": "classifier_agent",
+            "agent_type": "LlmAgent",
+            "description": "Classifies expense descriptions into necessity vs entertainment/luxury and learns user category preferences.",
+            "instruction": "You analyze expense descriptions and determine their category: 'necessity', 'entertainment', or 'luxury'.\nFirst, use `get_category_rule` to check if the user previously specified a rule for this category.\nIf the description is ambiguous, ask the user for clarification on whether it is a necessity or entertainment/luxury.\nWhen the user clarifies, use `save_category_rule` to persist their preference for future expenses.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Checks stored user classification preference for a category name.\n\nArgs:\n    category_name: Name of the category (e.g. 'concert tickets', 'groceries').\n\nReturns:\n    Dictionary with classification if known, or status 'unknown'.",
+                    "name": "get_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves user preference for how a category should be classified ('necessity' or 'entertainment').\n\nArgs:\n    category_name: The category name to save rule for.\n    classification: 'necessity' or 'entertainment'/'luxury'.\n\nReturns:\n    Confirmation dictionary.",
+                    "name": "save_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        },
+                        "classification": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name",
+                        "classification"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          },
+          "evaluator_agent": {
+            "agent_id": "evaluator_agent",
+            "agent_type": "LlmAgent",
+            "description": "Records and updates expense entries based on policy validation rules.",
+            "instruction": "You record and update expense entries in the database.\nPolicy Rules:\n- Expense < $100 AND category == 'necessity' -> auto_approved\n- Expense >= $100 OR category in ('entertainment', 'luxury') -> needs_review\nUse `record_expense` to log new expenses and `update_expense_record` to modify existing ones.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Records a new expense in the system after evaluating policy rules.\n\nArgs:\n    description: Description of the expense (e.g. 'Groceries at Whole Foods').\n    amount: Dollar amount of the expense.\n    category: Category of the expense ('necessity', 'entertainment', or 'luxury').\n    month: Optional target month in 'YYYY-MM' format. Defaults to current month.\n\nReturns:\n    A dictionary containing the saved expense details and policy status.",
+                    "name": "record_expense",
+                    "parameters": {
+                      "properties": {
+                        "description": {
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "type": "STRING"
+                        },
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "amount",
+                        "category"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates an existing expense entry and re-evaluates approval status.\n\nArgs:\n    expense_id: The ID of the expense record to update.\n    description: New description (optional).\n    amount: New dollar amount (optional).\n    category: New category ('necessity', 'entertainment', 'luxury') (optional).\n\nReturns:\n    A dictionary with the updated expense record.",
+                    "name": "update_expense_record",
+                    "parameters": {
+                      "properties": {
+                        "expense_id": {
+                          "type": "INTEGER"
+                        },
+                        "description": {
+                          "default": "",
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "nullable": true,
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "expense_id"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          },
+          "advisor_agent": {
+            "agent_id": "advisor_agent",
+            "agent_type": "LlmAgent",
+            "description": "Analyzes monthly spending reports and delivers personalized money-saving insights and budget guidance.",
+            "instruction": "You generate monthly spending insights and financial advice.\nFetch monthly reports using `get_monthly_expenses_report`.\nAnalyze category spending (necessities vs. entertainment/luxury), highlight expenses marked as 'needs_review', and provide actionable recommendations on:\n1. Potential money-saving opportunities.\n2. Areas with high discretionary spend.\n3. Where best to channel remaining funds or savings.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves all expenses filed for a given month with category totals and review items.\n\nArgs:\n    month: Target month string in 'YYYY-MM' format. Leave empty for current month.\n\nReturns:\n    Summary report containing itemized expenses, category totals, and items needing review.",
+                    "name": "get_monthly_expenses_report",
+                    "parameters": {
+                      "properties": {
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "turn_id": "turn_0",
+            "events": [
+              {
+                "author": "ambient_expense_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-747a5276-9af2-476a-bbd0-57598762c131",
+                        "args": {
+                          "agent_name": "classifier_agent"
+                        },
+                        "name": "transfer_to_agent"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "ambient_expense_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-747a5276-9af2-476a-bbd0-57598762c131",
+                        "name": "transfer_to_agent",
+                        "response": {
+                          "result": null
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-ddbf4cd9-c554-4196-8ca5-8580a9c61ae3",
+                        "args": {
+                          "category_name": "desk chair"
+                        },
+                        "name": "get_category_rule"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-ddbf4cd9-c554-4196-8ca5-8580a9c61ae3",
+                        "name": "get_category_rule",
+                        "response": {
+                          "category": "desk chair",
+                          "status": "unknown"
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "classifier_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "text": "Is this desk chair purchase a necessity (for example, for your work or study) or would you classify it as entertainment or luxury? Let me know so I can categorize it correctly and save your preference for future desk chair purchases!"
+                    }
+                  ],
+                  "role": "model"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "prompt": {
+        "parts": [
+          {
+            "text": "Show me a summary of all my expenses for this month along with category breakdowns and savings insights."
+          }
+        ],
+        "role": "user"
+      },
+      "responses": [
+        {
+          "response": {
+            "parts": [
+              {
+                "text": "Here is a summary of your expenses for **July 2026**, along with category breakdowns and actionable financial insights.\n\n---\n\n### **1. Expense Summary & Category Breakdown**\nYour total spending for the month is **$130.00** across **4 transactions**.\n\n*   **Necessities:** **$50.00** (38.5% of total budget)\n    *   *Groceries:* $5.00\n    *   *Groceries:* $45.00\n*   **Entertainment / Luxury:** **$80.00** (61.5% of total budget)\n    *   *Concert tickets:* $20.00\n    *   *Concert tickets:* $60.00\n\n---\n\n### **2. Items Requiring Review**\nYou have **2 pending items** (totaling **$80.00**) that require verification:\n1.  **Concert tickets ($20.00)** — Status: `needs_review`\n2.  **Concert tickets ($60.00)** — Status: `needs_review`\n\n*Please review and approve or adjust these entries to keep your records fully accurate.*\n\n---\n\n### **3. Savings Insights & Actionable Guidance**\n\n#### **A. High Discretionary Spend Analysis**\nCurrently, your entertainment spending ($80.00) exceeds your necessary spending ($50.00), taking up **over 60% of your current monthly outlay**. While live entertainment is a great way to enjoy your leisure time, ticket purchases can quickly inflate your discretionary expenses if not paced.\n\n#### **B. Potential Money-Saving Opportunities**\n*   **Consolidate Ticket Purchases:** Since you have two separate transactions for concert tickets, check to see if purchasing in groups, during pre-sales, or opting for standard admission could help reduce convenience and booking fees.\n*   **Review Subscription Services:** If you frequently use entertainment booking platforms, check if you have recurring memberships that offer fee discounts or cash-back rewards on ticket purchases.\n\n#### **C. Where to Channel Savings**\nSince your baseline necessary expenses (Groceries) are relatively low ($50.00), you have a great opportunity to optimize your surplus cash:\n*   **Emergency Fund / High-Yield Savings:** Channel any saved funds from reduced entertainment spending into a High-Yield Savings Account (HYSA) to ensure a solid safety net.\n*   **Sinking Fund for Entertainment:** Set a fixed, monthly \"fun budget\" in a dedicated bucket. This lets you save up for higher-priced tickets (like the $60.00 purchase) over time without experiencing sudden spikes in your monthly spending."
+              }
+            ],
+            "role": "model"
+          }
+        }
+      ],
+      "eval_case_id": "monthly_report_and_insights",
+      "agent_data": {
+        "agents": {
+          "ambient_expense_agent": {
+            "agent_id": "ambient_expense_agent",
+            "agent_type": "LlmAgent",
+            "description": "",
+            "instruction": "You are the Ambient Expense Validation Agent.\nYour responsibilities:\n1. **Log Expenses**: Receive expense details, classify them into 'necessity' vs 'entertainment'/'luxury' (asking user if ambiguous), and record them.\n2. **Policy Evaluation**:\n   - Expenses < $100 for necessities are 'auto_approved'.\n   - Expenses >= $100 OR for entertainment/luxury are marked 'needs_review'.\n3. **Update Expenses**: Allow users to modify existing expenses or save pending updates for monthly review.\n4. **Monthly Summary & Insights**: Provide monthly spend reports displaying:\n   - Itemized expenses grouped by status (highlighting 'needs_review').\n   - Category-wise spend totals.\n   - Actionable financial advice on saving money and optimal fund allocation.\n\nUtilize your sub-agents and tools to perform these tasks cleanly and accurately.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Records a new expense in the system after evaluating policy rules.\n\nArgs:\n    description: Description of the expense (e.g. 'Groceries at Whole Foods').\n    amount: Dollar amount of the expense.\n    category: Category of the expense ('necessity', 'entertainment', or 'luxury').\n    month: Optional target month in 'YYYY-MM' format. Defaults to current month.\n\nReturns:\n    A dictionary containing the saved expense details and policy status.",
+                    "name": "record_expense",
+                    "parameters": {
+                      "properties": {
+                        "description": {
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "type": "STRING"
+                        },
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "amount",
+                        "category"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates an existing expense entry and re-evaluates approval status.\n\nArgs:\n    expense_id: The ID of the expense record to update.\n    description: New description (optional).\n    amount: New dollar amount (optional).\n    category: New category ('necessity', 'entertainment', 'luxury') (optional).\n\nReturns:\n    A dictionary with the updated expense record.",
+                    "name": "update_expense_record",
+                    "parameters": {
+                      "properties": {
+                        "expense_id": {
+                          "type": "INTEGER"
+                        },
+                        "description": {
+                          "default": "",
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "nullable": true,
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "expense_id"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves all expenses filed for a given month with category totals and review items.\n\nArgs:\n    month: Target month string in 'YYYY-MM' format. Leave empty for current month.\n\nReturns:\n    Summary report containing itemized expenses, category totals, and items needing review.",
+                    "name": "get_monthly_expenses_report",
+                    "parameters": {
+                      "properties": {
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Checks stored user classification preference for a category name.\n\nArgs:\n    category_name: Name of the category (e.g. 'concert tickets', 'groceries').\n\nReturns:\n    Dictionary with classification if known, or status 'unknown'.",
+                    "name": "get_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves user preference for how a category should be classified ('necessity' or 'entertainment').\n\nArgs:\n    category_name: The category name to save rule for.\n    classification: 'necessity' or 'entertainment'/'luxury'.\n\nReturns:\n    Confirmation dictionary.",
+                    "name": "save_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        },
+                        "classification": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name",
+                        "classification"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": [
+              "classifier_agent",
+              "evaluator_agent",
+              "advisor_agent"
+            ]
+          },
+          "classifier_agent": {
+            "agent_id": "classifier_agent",
+            "agent_type": "LlmAgent",
+            "description": "Classifies expense descriptions into necessity vs entertainment/luxury and learns user category preferences.",
+            "instruction": "You analyze expense descriptions and determine their category: 'necessity', 'entertainment', or 'luxury'.\nFirst, use `get_category_rule` to check if the user previously specified a rule for this category.\nIf the description is ambiguous, ask the user for clarification on whether it is a necessity or entertainment/luxury.\nWhen the user clarifies, use `save_category_rule` to persist their preference for future expenses.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Checks stored user classification preference for a category name.\n\nArgs:\n    category_name: Name of the category (e.g. 'concert tickets', 'groceries').\n\nReturns:\n    Dictionary with classification if known, or status 'unknown'.",
+                    "name": "get_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves user preference for how a category should be classified ('necessity' or 'entertainment').\n\nArgs:\n    category_name: The category name to save rule for.\n    classification: 'necessity' or 'entertainment'/'luxury'.\n\nReturns:\n    Confirmation dictionary.",
+                    "name": "save_category_rule",
+                    "parameters": {
+                      "properties": {
+                        "category_name": {
+                          "type": "STRING"
+                        },
+                        "classification": {
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "category_name",
+                        "classification"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          },
+          "evaluator_agent": {
+            "agent_id": "evaluator_agent",
+            "agent_type": "LlmAgent",
+            "description": "Records and updates expense entries based on policy validation rules.",
+            "instruction": "You record and update expense entries in the database.\nPolicy Rules:\n- Expense < $100 AND category == 'necessity' -> auto_approved\n- Expense >= $100 OR category in ('entertainment', 'luxury') -> needs_review\nUse `record_expense` to log new expenses and `update_expense_record` to modify existing ones.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Records a new expense in the system after evaluating policy rules.\n\nArgs:\n    description: Description of the expense (e.g. 'Groceries at Whole Foods').\n    amount: Dollar amount of the expense.\n    category: Category of the expense ('necessity', 'entertainment', or 'luxury').\n    month: Optional target month in 'YYYY-MM' format. Defaults to current month.\n\nReturns:\n    A dictionary containing the saved expense details and policy status.",
+                    "name": "record_expense",
+                    "parameters": {
+                      "properties": {
+                        "description": {
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "type": "STRING"
+                        },
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "amount",
+                        "category"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates an existing expense entry and re-evaluates approval status.\n\nArgs:\n    expense_id: The ID of the expense record to update.\n    description: New description (optional).\n    amount: New dollar amount (optional).\n    category: New category ('necessity', 'entertainment', 'luxury') (optional).\n\nReturns:\n    A dictionary with the updated expense record.",
+                    "name": "update_expense_record",
+                    "parameters": {
+                      "properties": {
+                        "expense_id": {
+                          "type": "INTEGER"
+                        },
+                        "description": {
+                          "default": "",
+                          "type": "STRING"
+                        },
+                        "amount": {
+                          "nullable": true,
+                          "type": "NUMBER"
+                        },
+                        "category": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [
+                        "expense_id"
+                      ],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          },
+          "advisor_agent": {
+            "agent_id": "advisor_agent",
+            "agent_type": "LlmAgent",
+            "description": "Analyzes monthly spending reports and delivers personalized money-saving insights and budget guidance.",
+            "instruction": "You generate monthly spending insights and financial advice.\nFetch monthly reports using `get_monthly_expenses_report`.\nAnalyze category spending (necessities vs. entertainment/luxury), highlight expenses marked as 'needs_review', and provide actionable recommendations on:\n1. Potential money-saving opportunities.\n2. Areas with high discretionary spend.\n3. Where best to channel remaining funds or savings.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves all expenses filed for a given month with category totals and review items.\n\nArgs:\n    month: Target month string in 'YYYY-MM' format. Leave empty for current month.\n\nReturns:\n    Summary report containing itemized expenses, category totals, and items needing review.",
+                    "name": "get_monthly_expenses_report",
+                    "parameters": {
+                      "properties": {
+                        "month": {
+                          "default": "",
+                          "type": "STRING"
+                        }
+                      },
+                      "required": [],
+                      "type": "OBJECT"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "turn_id": "turn_0",
+            "events": [
+              {
+                "author": "ambient_expense_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-7c367165-60d3-428d-98a5-f382e17dc8b5",
+                        "args": {
+                          "agent_name": "advisor_agent"
+                        },
+                        "name": "transfer_to_agent"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "ambient_expense_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-7c367165-60d3-428d-98a5-f382e17dc8b5",
+                        "name": "transfer_to_agent",
+                        "response": {
+                          "result": null
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "advisor_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-f9634300-ee5b-4100-88d0-c54c81392951",
+                        "args": {},
+                        "name": "get_monthly_expenses_report"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "advisor_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-f9634300-ee5b-4100-88d0-c54c81392951",
+                        "name": "get_monthly_expenses_report",
+                        "response": {
+                          "month": "2026-07",
+                          "total_expenses_count": 4,
+                          "total_spent": 130.0,
+                          "category_totals": {
+                            "necessity": 50.0,
+                            "entertainment": 80.0
+                          },
+                          "needs_review_count": 2,
+                          "needs_review_items": [
+                            {
+                              "id": 2,
+                              "description": "concert tickets",
+                              "amount": 20.0,
+                              "category": "entertainment",
+                              "status": "needs_review",
+                              "month": "2026-07",
+                              "created_at": "2026-07-20T09:15:33.738986+00:00",
+                              "updated_at": "2026-07-20T09:15:33.738986+00:00"
+                            },
+                            {
+                              "id": 4,
+                              "description": "Concert tickets",
+                              "amount": 60.0,
+                              "category": "entertainment",
+                              "status": "needs_review",
+                              "month": "2026-07",
+                              "created_at": "2026-07-20T09:17:19.403580+00:00",
+                              "updated_at": "2026-07-20T09:17:19.403580+00:00"
+                            }
+                          ],
+                          "auto_approved_count": 2,
+                          "auto_approved_items": [
+                            {
+                              "id": 1,
+                              "description": "groceries",
+                              "amount": 5.0,
+                              "category": "necessity",
+                              "status": "auto_approved",
+                              "month": "2026-07",
+                              "created_at": "2026-07-20T09:14:51.843573+00:00",
+                              "updated_at": "2026-07-20T09:14:51.843573+00:00"
+                            },
+                            {
+                              "id": 3,
+                              "description": "groceries",
+                              "amount": 45.0,
+                              "category": "necessity",
+                              "status": "auto_approved",
+                              "month": "2026-07",
+                              "created_at": "2026-07-20T09:16:55.918261+00:00",
+                              "updated_at": "2026-07-20T09:16:55.918261+00:00"
+                            }
+                          ],
+                          "all_expenses": [
+                            {
+                              "id": 1,
+                              "description": "groceries",
+                              "amount": 5.0,
+                              "category": "necessity",
+                              "status": "auto_approved",
+                              "month": "2026-07",
+                              "created_at": "2026-07-20T09:14:51.843573+00:00",
+                              "updated_at": "2026-07-20T09:14:51.843573+00:00"
+                            },
+                            {
+                              "id": 2,
+                              "description": "concert tickets",
+                              "amount": 20.0,
+                              "category": "entertainment",
+                              "status": "needs_review",
+                              "month": "2026-07",
+                              "created_at": "2026-07-20T09:15:33.738986+00:00",
+                              "updated_at": "2026-07-20T09:15:33.738986+00:00"
+                            },
+                            {
+                              "id": 3,
+                              "description": "groceries",
+                              "amount": 45.0,
+                              "category": "necessity",
+                              "status": "auto_approved",
+                              "month": "2026-07",
+                              "created_at": "2026-07-20T09:16:55.918261+00:00",
+                              "updated_at": "2026-07-20T09:16:55.918261+00:00"
+                            },
+                            {
+                              "id": 4,
+                              "description": "Concert tickets",
+                              "amount": 60.0,
+                              "category": "entertainment",
+                              "status": "needs_review",
+                              "month": "2026-07",
+                              "created_at": "2026-07-20T09:17:19.403580+00:00",
+                              "updated_at": "2026-07-20T09:17:19.403580+00:00"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "advisor_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "text": "Here is a summary of your expenses for **July 2026**, along with category breakdowns and actionable financial insights.\n\n---\n\n### **1. Expense Summary & Category Breakdown**\nYour total spending for the month is **$130.00** across **4 transactions**.\n\n*   **Necessities:** **$50.00** (38.5% of total budget)\n    *   *Groceries:* $5.00\n    *   *Groceries:* $45.00\n*   **Entertainment / Luxury:** **$80.00** (61.5% of total budget)\n    *   *Concert tickets:* $20.00\n    *   *Concert tickets:* $60.00\n\n---\n\n### **2. Items Requiring Review**\nYou have **2 pending items** (totaling **$80.00**) that require verification:\n1.  **Concert tickets ($20.00)** — Status: `needs_review`\n2.  **Concert tickets ($60.00)** — Status: `needs_review`\n\n*Please review and approve or adjust these entries to keep your records fully accurate.*\n\n---\n\n### **3. Savings Insights & Actionable Guidance**\n\n#### **A. High Discretionary Spend Analysis**\nCurrently, your entertainment spending ($80.00) exceeds your necessary spending ($50.00), taking up **over 60% of your current monthly outlay**. While live entertainment is a great way to enjoy your leisure time, ticket purchases can quickly inflate your discretionary expenses if not paced.\n\n#### **B. Potential Money-Saving Opportunities**\n*   **Consolidate Ticket Purchases:** Since you have two separate transactions for concert tickets, check to see if purchasing in groups, during pre-sales, or opting for standard admission could help reduce convenience and booking fees.\n*   **Review Subscription Services:** If you frequently use entertainment booking platforms, check if you have recurring memberships that offer fee discounts or cash-back rewards on ticket purchases.\n\n#### **C. Where to Channel Savings**\nSince your baseline necessary expenses (Groceries) are relatively low ($50.00), you have a great opportunity to optimize your surplus cash:\n*   **Emergency Fund / High-Yield Savings:** Channel any saved funds from reduced entertainment spending into a High-Yield Savings Account (HYSA) to ensure a solid safety net.\n*   **Sinking Fund for Entertainment:** Set a fixed, monthly \"fun budget\" in a dedicated bucket. This lets you save up for higher-priced tickets (like the $60.00 purchase) over time without experiencing sudden spikes in your monthly spending."
+                    }
+                  ],
+                  "role": "model"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
