@@ -139,12 +139,11 @@
       color: #0f172a;
     }
 
-    /* Login Modal Overlay */
+    /* Login Screen */
     .login-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(8px);
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -156,56 +155,21 @@
       background: #1e293b;
       border: 1px solid var(--border);
       border-radius: 18px;
-      max-width: 520px;
+      max-width: 440px;
       width: 100%;
-      padding: 28px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      padding: 32px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65);
     }
 
     .login-card h2 {
-      font-size: 1.35rem;
-      margin-bottom: 6px;
+      font-size: 1.4rem;
+      margin-bottom: 8px;
     }
 
     .login-card p {
-      font-size: 0.88rem;
+      font-size: 0.9rem;
       color: var(--text-muted);
-      margin-bottom: 18px;
-    }
-
-    .quick-accounts {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin-bottom: 18px;
-    }
-
-    .acct-btn {
-      background: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 12px;
-      text-align: left;
-      color: var(--text);
-      cursor: pointer;
-      transition: border-color 0.15s ease, transform 0.1s ease;
-    }
-
-    .acct-btn:hover {
-      border-color: var(--kid-accent);
-      transform: translateY(-1px);
-    }
-
-    .acct-btn .acct-title {
-      font-weight: 700;
-      font-size: 0.92rem;
-    }
-
-    .acct-btn .acct-pw {
-      font-family: monospace;
-      font-size: 0.76rem;
-      color: var(--text-muted);
-      margin-top: 2px;
+      margin-bottom: 22px;
     }
 
     .login-error {
@@ -215,7 +179,7 @@
       padding: 10px 12px;
       border-radius: 8px;
       font-size: 0.86rem;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
       display: none;
     }
 
@@ -480,48 +444,30 @@
   </style>
 </head>
 <body>
-  <!-- Family Login Modal -->
+  <!-- Clean Family Login Screen (No Exposed Credentials) -->
   <div id="login-modal" class="login-overlay">
     <div class="login-card">
       <h2>🔐 Family Portal Sign In</h2>
-      <p>Select a family profile below (or type credentials) to access the Kids or Parent Approval Portal:</p>
-
-      <div class="quick-accounts">
-        <button type="button" class="acct-btn" data-user="mother" data-pw="Mom$SmartSave2026!">
-          <div class="acct-title">👩 mother (Parent)</div>
-          <div class="acct-pw">Mom$SmartSave2026!</div>
-        </button>
-        <button type="button" class="acct-btn" data-user="father" data-pw="Dad$SmartSave2026!">
-          <div class="acct-title">👨 father (Parent)</div>
-          <div class="acct-pw">Dad$SmartSave2026!</div>
-        </button>
-        <button type="button" class="acct-btn" data-user="daughter" data-pw="Girl$SaveGoal2026!">
-          <div class="acct-title">👧 daughter (Child)</div>
-          <div class="acct-pw">Girl$SaveGoal2026!</div>
-        </button>
-        <button type="button" class="acct-btn" data-user="son" data-pw="Boy$SaveGoal2026!">
-          <div class="acct-title">👦 son (Child)</div>
-          <div class="acct-pw">Boy$SaveGoal2026!</div>
-        </button>
-      </div>
+      <p>Enter your username and password to access your portal.</p>
 
       <div id="login-error-box" class="login-error"></div>
 
-      <form id="login-form">
+      <form id="login-form" autocomplete="on">
         <div class="form-group">
           <label for="login-username">Username</label>
-          <input id="login-username" type="text" placeholder="mother, father, daughter, or son" required />
+          <input id="login-username" name="username" type="text" placeholder="Enter username" autocomplete="username" required />
         </div>
         <div class="form-group">
           <label for="login-password">Password</label>
-          <input id="login-password" type="password" placeholder="Enter password" required />
+          <input id="login-password" name="password" type="password" placeholder="Enter password" autocomplete="current-password" required />
         </div>
-        <button type="submit" class="btn-primary btn-parent">Sign In to Family Hub</button>
+        <button id="login-submit-btn" type="submit" class="btn-primary btn-parent">Sign In</button>
       </form>
     </div>
   </div>
 
-  <div class="container">
+  <!-- Main Portal Container (Revealed Only After Authentication) -->
+  <div id="app-main" class="container hidden">
     <header>
       <div class="brand">
         <h1>🌟 Family Expense &amp; Pre-Purchase Approval Hub</h1>
@@ -529,10 +475,10 @@
       </div>
       <div class="header-controls">
         <div class="user-chip">
-          <span id="signed-in-label">Not signed in</span>
-          <button id="btn-signout" type="button" class="btn-logout">Switch User</button>
+          <span id="signed-in-label">Signed in</span>
+          <button id="btn-signout" type="button" class="btn-logout">Sign Out</button>
         </div>
-        <div class="role-switcher">
+        <div id="role-switcher-bar" class="role-switcher">
           <button id="tab-kid" class="role-btn active-kid" type="button">
             🎒 Kids Portal (Ask Before Buying)
           </button>
@@ -575,7 +521,7 @@
           <form id="kid-form">
             <div class="form-group">
               <label for="kid-name">Requested By</label>
-              <input id="kid-name" type="text" value="Daughter" maxlength="60" required />
+              <input id="kid-name" type="text" value="Child" maxlength="60" required />
             </div>
             <div class="form-group">
               <label for="kid-desc">What do you want to buy?</label>
@@ -623,7 +569,7 @@
         <div class="card">
           <h2>🛑 Pending Parent Approvals (HITL Execution Stops)</h2>
           <p class="subtitle">
-            Purchases paused because they are &ge; $100 or Entertainment/Luxury. Only 'mother' or 'father' can approve or decline.
+            Purchases paused because they are &ge; $100 or Entertainment/Luxury. Approve or decline with a coaching note for your child.
           </p>
           <div id="parent-pending-list" class="item-list"></div>
         </div>
@@ -665,23 +611,26 @@
 
   <script>
     let currentUser = null;
+    let authToken = sessionStorage.getItem("family_auth_token") || "";
+
+    const appMain = document.getElementById("app-main");
     const tabKid = document.getElementById("tab-kid");
     const tabParent = document.getElementById("tab-parent");
     const viewKid = document.getElementById("view-kid");
     const viewParent = document.getElementById("view-parent");
     const loginModal = document.getElementById("login-modal");
 
-    document.querySelectorAll(".acct-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        document.getElementById("login-username").value = btn.getAttribute("data-user");
-        document.getElementById("login-password").value = btn.getAttribute("data-pw");
-      });
-    });
+    function getAuthHeaders(extraHeaders) {
+      const headers = Object.assign({}, extraHeaders || {});
+      if (authToken) {
+        headers["Authorization"] = "Bearer " + authToken;
+      }
+      return headers;
+    }
 
     function switchMode(mode) {
       if (mode === "parent") {
         if (!currentUser || currentUser.role !== "parent") {
-          alert("🔒 Access Restricted: Only 'mother' or 'father' can access the Parent Approval Portal. Click 'Switch User' to sign in as a parent.");
           return;
         }
         viewKid.classList.add("hidden");
@@ -699,23 +648,36 @@
     tabKid.addEventListener("click", () => switchMode("kid"));
     tabParent.addEventListener("click", () => switchMode("parent"));
 
-    function applyUserSession(user) {
+    function applyUserSession(user, token) {
       currentUser = user;
+      if (token) {
+        authToken = token;
+        sessionStorage.setItem("family_auth_token", token);
+      }
+
       if (!user) {
+        appMain.classList.add("hidden");
         loginModal.classList.remove("hidden");
         return;
       }
+
       loginModal.classList.add("hidden");
+      appMain.classList.remove("hidden");
+
       const roleIcon = user.role === "parent" ? "🛡️ Parent" : "🎒 Child";
       document.getElementById("signed-in-label").textContent =
         user.display_name + " (" + roleIcon + ")";
 
       const kidNameInput = document.getElementById("kid-name");
       if (user.role === "child") {
+        // Hide Parent Approval tab completely for child accounts
+        tabParent.classList.add("hidden");
         kidNameInput.value = user.display_name;
         kidNameInput.readOnly = true;
         switchMode("kid");
       } else {
+        // Parent account unlocks both Parent Approval & Kids view
+        tabParent.classList.remove("hidden");
         kidNameInput.readOnly = false;
         switchMode("parent");
       }
@@ -724,32 +686,61 @@
     document.getElementById("login-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const errBox = document.getElementById("login-error-box");
+      const submitBtn = document.getElementById("login-submit-btn");
       errBox.style.display = "none";
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Signing in...";
 
-      const username = document.getElementById("login-username").value;
-      const password = document.getElementById("login-password").value;
+      try {
+        const username = document.getElementById("login-username").value.trim();
+        const password = document.getElementById("login-password").value;
 
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ username, password })
+        });
 
-      if (!res.ok) {
-        const errData = await res.json();
-        errBox.textContent = errData.detail || "Invalid credentials";
+        if (!res.ok) {
+          let errMessage = "Invalid username or password.";
+          try {
+            const errData = await res.json();
+            if (errData && errData.detail) {
+              errMessage = errData.detail;
+            }
+          } catch (_) {
+            const rawText = await res.text();
+            if (rawText) errMessage = rawText;
+          }
+          errBox.textContent = errMessage;
+          errBox.style.display = "block";
+          return;
+        }
+
+        const data = await res.json();
+        document.getElementById("login-password").value = "";
+        applyUserSession(data.user, data.token);
+        await loadDashboard();
+      } catch (err) {
+        errBox.textContent = "Network error while signing in. Please try again.";
         errBox.style.display = "block";
-        return;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Sign In";
       }
-
-      const data = await res.json();
-      applyUserSession(data.user);
-      await loadDashboard();
     });
 
     document.getElementById("btn-signout").addEventListener("click", async () => {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "same-origin"
+      });
       currentUser = null;
+      authToken = "";
+      sessionStorage.removeItem("family_auth_token");
+      appMain.classList.add("hidden");
       loginModal.classList.remove("hidden");
     });
 
@@ -883,7 +874,10 @@
 
     async function loadDashboard() {
       const pct = document.getElementById("savings-slider").value || 20;
-      const res = await fetch("/api/family/dashboard?savings_target_pct=" + encodeURIComponent(pct));
+      const res = await fetch(
+        "/api/family/dashboard?savings_target_pct=" + encodeURIComponent(pct),
+        { headers: getAuthHeaders(), credentials: "same-origin" }
+      );
       const data = await res.json();
 
       document.getElementById("kpi-total").textContent = "$" + Number(data.report.total_spent).toFixed(2);
@@ -910,7 +904,8 @@
 
       const res = await fetch("/api/family/kid-request", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        credentials: "same-origin",
         body: JSON.stringify(payload)
       });
       const result = await res.json();
@@ -935,7 +930,8 @@
     async function submitParentDecision(expenseId, decision, parentNote) {
       const res = await fetch("/api/family/parent-decision", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        credentials: "same-origin",
         body: JSON.stringify({
           expense_id: expenseId,
           decision: decision,
@@ -961,7 +957,8 @@
       const classification = document.getElementById("rule-class").value;
       const res = await fetch("/api/family/category-rule", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        credentials: "same-origin",
         body: JSON.stringify({ category_name, classification })
       });
       if (!res.ok) {
@@ -974,12 +971,17 @@
     });
 
     async function checkInitialAuth() {
-      const res = await fetch("/api/auth/me");
+      const res = await fetch("/api/auth/me", {
+        headers: getAuthHeaders(),
+        credentials: "same-origin"
+      });
       const data = await res.json();
       if (data.authenticated && data.user) {
-        applyUserSession(data.user);
+        applyUserSession(data.user, authToken);
+        await loadDashboard();
+      } else {
+        applyUserSession(null, "");
       }
-      await loadDashboard();
     }
 
     checkInitialAuth();
