@@ -67,6 +67,8 @@ db.sqlite3
 db.sqlite3-journal
 *.db
 .ruff_cache/
+artifacts/
+uv.lock
 
 # Flask stuff:
 instance/

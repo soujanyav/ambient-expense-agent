@@ -26,7 +26,7 @@ WORKDIR /code
 COPY ./pyproject.toml ./README.md ./uv.lock* ./
 COPY ./app ./app
 
-RUN uv sync --frozen --no-dev && \
+RUN uv sync --no-dev && \
     mkdir -p /code/data && \
     chown -R appuser:appgroup /code
 
