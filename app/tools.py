@@ -39,20 +39,43 @@ from app.schemas import (
 )
 
 
-def evaluate_policy(amount: float, category: str) -> str:
+CHILD_AUTO_APPROVAL_LIMITS: dict[str, float] = {
+    "son": 10.0,
+    "daughter": 30.0,
+}
+DEFAULT_AUTO_APPROVAL_LIMIT = 100.0
+
+
+def get_auto_approval_limit(requester_name: str = "") -> float:
+    """Return the automatic AI approval dollar limit for a given family member.
+
+    Rules:
+    - 'son': $10.00 (< $10.00 necessity is auto_approved)
+    - 'daughter': $30.00 (< $30.00 necessity is auto_approved)
+    - default / other: $100.00
+    """
+    key = (requester_name or "").lower().strip()
+    return CHILD_AUTO_APPROVAL_LIMITS.get(key, DEFAULT_AUTO_APPROVAL_LIMIT)
+
+
+def evaluate_policy(
+    amount: float, category: str, requester_name: str = ""
+) -> str:
     """Evaluate whether an expense is auto_approved or needs_review (Parent HITL Gate).
 
     Args:
         amount: Positive dollar amount of the expense or purchase request.
         category: Expense category ('necessity', 'entertainment', or 'luxury').
+        requester_name: Name of the requester ('Son' -> $10 limit, 'Daughter' -> $30 limit, default -> $100 limit).
 
     Returns:
         Policy status string:
-        - 'auto_approved' if amount < $100.00 AND category == 'necessity'.
-        - 'needs_review' if amount >= $100.00 OR category in ('entertainment', 'luxury').
+        - 'auto_approved' if amount < requester's limit ($10 for Son, $30 for Daughter, $100 default) AND category == 'necessity'.
+        - 'needs_review' if amount >= requester's limit OR category in ('entertainment', 'luxury').
     """
     cat = category.lower().strip()
-    if amount < 100.0 and cat == "necessity":
+    limit = get_auto_approval_limit(requester_name)
+    if amount < limit and cat == "necessity":
         return "auto_approved"
     return "needs_review"
 
@@ -193,7 +216,10 @@ def log_expense(
         else datetime.datetime.now().strftime("%Y-%m")
     )
     final_category = classify_category_fast(validated.description, validated.category)
-    status = evaluate_policy(validated.amount, final_category)
+    limit = get_auto_approval_limit(validated.requester_name)
+    status = evaluate_policy(
+        validated.amount, final_category, validated.requester_name
+    )
     requires_parent_hitl = status == "needs_review"
 
     result = add_expense(
@@ -206,9 +232,9 @@ def log_expense(
     )
 
     hitl_notice = (
-        "PAUSED FOR PARENT APPROVAL (HITL Stop): Purchase requires parent sign-off before buying."
+        f"PAUSED FOR PARENT APPROVAL (HITL Stop): Exceeds {validated.requester_name}'s ${limit:.0f} limit or is {final_category}. Requires parent sign-off before buying."
         if requires_parent_hitl
-        else "AUTO-APPROVED: Necessity under $100 is approved for immediate purchase."
+        else f"AUTO-APPROVED: Necessity under {validated.requester_name}'s ${limit:.0f} limit is approved for immediate purchase."
     )
 
     response = {
@@ -217,6 +243,7 @@ def log_expense(
             f"Recorded expense #{result['id']} for '{result['description']}' "
             f"(${result['amount']:.2f}, {final_category}) as '{status}'. {hitl_notice}"
         ),
+        "auto_approval_limit": limit,
         "hitl_execution_stopped": requires_parent_hitl,
         "parent_approval_required": requires_parent_hitl,
         "expense": result,
@@ -375,8 +402,9 @@ def update_expense_record(
 
     eval_amount = validated.amount if validated.amount is not None else match["amount"]
     eval_cat = cat_opt if cat_opt is not None else match["category"]
+    eval_requester = match.get("requester_name", "Child")
 
-    new_status = evaluate_policy(eval_amount, eval_cat)
+    new_status = evaluate_policy(eval_amount, eval_cat, eval_requester)
 
     updated = update_expense(
         expense_id=validated.expense_id,

@@ -107,13 +107,19 @@ def before_tool_guardrail_callback(
             )
 
     # Determine expected policy outcome for Intent-vs-Outcome tracking
+    from app.tools import get_auto_approval_limit
+
     expected_policy_status = None
     if tool_name in {"log_expense", "request_purchase_approval"}:
         amt = float(safe_args.get("amount", 0.0) or 0.0)
         cat = str(safe_args.get("category", "") or "").lower().strip()
-        if amt >= 100.0 or cat in {"entertainment", "luxury"}:
+        req_name = str(
+            safe_args.get("requester_name") or safe_args.get("kid_name") or "Child"
+        )
+        limit = get_auto_approval_limit(req_name)
+        if amt >= limit or cat in {"entertainment", "luxury"}:
             expected_policy_status = "needs_review"
-        elif cat == "necessity" and amt < 100.0:
+        elif cat == "necessity" and amt < limit:
             expected_policy_status = "auto_approved"
 
     intended_action = {
@@ -137,6 +143,8 @@ def after_tool_guardrail_callback(
     tool_response: dict[str, Any] | Any,
 ) -> dict[str, Any] | None:
     """ADK after_tool_callback: enforces post-execution HITL stops and logs Intended Action vs Actual Outcome."""
+    from app.tools import get_auto_approval_limit
+
     tool_name = getattr(tool, "name", None) or getattr(tool, "__name__", str(tool))
     state = getattr(tool_context, "state", None)
     intended_action = (
@@ -165,13 +173,16 @@ def after_tool_guardrail_callback(
         amt = float(expense_obj.get("amount", 0.0) or 0.0)
         cat = str(expense_obj.get("category", "")).lower().strip()
         status = str(expense_obj.get("status", "")).lower().strip()
+        req_name = str(expense_obj.get("requester_name", "Child"))
+        limit = get_auto_approval_limit(req_name)
 
-        # Hard invariant: >= $100 or entertainment/luxury MUST trigger HITL Parent Approval Stop
-        if (amt >= 100.0 or cat in {"entertainment", "luxury"}) and status not in {
+        # Hard invariant: >= requester's limit ($10 for Son, $30 for Daughter, $100 default) or entertainment/luxury MUST trigger HITL Parent Approval Stop
+        if (amt >= limit or cat in {"entertainment", "luxury"}) and status not in {
             "approved",
             "rejected",
         }:
             expense_obj["status"] = "needs_review"
+            response_dict["auto_approval_limit"] = limit
             response_dict["hitl_execution_stopped"] = True
             response_dict["hitl_status"] = "pending_parent_approval"
             response_dict["parent_approval_required"] = True
@@ -182,13 +193,14 @@ def after_tool_guardrail_callback(
                 try:
                     request_conf(
                         hint=(
-                            f"Parent Approval Required: {expense_obj.get('requester_name', 'Child')} "
-                            f"requested ${amt:.2f} for '{expense_obj.get('description')}' ({cat}). "
+                            f"Parent Approval Required: {req_name} "
+                            f"requested ${amt:.2f} for '{expense_obj.get('description')}' ({cat}, limit=${limit:.0f}). "
                             "Approve or reject via Parent Portal or resolve_parent_approval."
                         ),
                         payload={
                             "expense_id": expense_obj.get("id"),
                             "amount": amt,
+                            "limit": limit,
                             "category": cat,
                             "description": expense_obj.get("description"),
                         },

@@ -515,8 +515,8 @@
       <div class="grid-2">
         <div class="card">
           <h2>🛍️ Ask Before You Buy / Log Expense</h2>
-          <p class="subtitle">
-            Necessities under $100 are approved right away! Purchases $100+ or Fun/Entertainment items go to Mom/Dad for approval first.
+          <p id="kid-allowance-subtitle" class="subtitle">
+            AI Auto-Approval Allowance: Under $10 for Son | Under $30 for Daughter (Necessities only). Anything above your limit or in Entertainment/Luxury goes to Mom/Dad for approval first.
           </p>
           <form id="kid-form">
             <div class="form-group">
@@ -669,16 +669,24 @@
         user.display_name + " (" + roleIcon + ")";
 
       const kidNameInput = document.getElementById("kid-name");
+      const allowanceSub = document.getElementById("kid-allowance-subtitle");
       if (user.role === "child") {
         // Hide Parent Approval tab completely for child accounts
         tabParent.classList.add("hidden");
         kidNameInput.value = user.display_name;
         kidNameInput.readOnly = true;
+        const myLimit = user.username === "son" ? 10 : 30;
+        allowanceSub.textContent =
+          "Your AI Auto-Approval Allowance is under $" + myLimit +
+          ".00 for Necessities! Purchases $" + myLimit +
+          ".00+ or Entertainment/Luxury items go to Mom/Dad for approval first.";
         switchMode("kid");
       } else {
         // Parent account unlocks both Parent Approval & Kids view
         tabParent.classList.remove("hidden");
         kidNameInput.readOnly = false;
+        allowanceSub.textContent =
+          "AI Auto-Approval Allowance: Under $10 for Son | Under $30 for Daughter (Necessities only).";
         switchMode("parent");
       }
     }
@@ -811,6 +819,13 @@
       });
     }
 
+    function getRequesterAllowanceLimit(requesterName) {
+      const lower = String(requesterName || "").toLowerCase().trim();
+      if (lower === "son") return 10;
+      if (lower === "daughter") return 30;
+      return 100;
+    }
+
     function renderParentQueue(pendingItems) {
       const container = document.getElementById("parent-pending-list");
       container.replaceChildren();
@@ -838,7 +853,10 @@
 
         const meta = document.createElement("div");
         meta.className = "expense-meta";
-        const reason = Number(item.amount) >= 100 ? "Amount >= $100 threshold" : "Category is '" + item.category + "'";
+        const limit = getRequesterAllowanceLimit(item.requester_name);
+        const reason = Number(item.amount) >= limit
+          ? "Amount >= $" + limit + " allowance limit for " + (item.requester_name || "Child")
+          : "Category is '" + item.category + "'";
         meta.textContent = "Child: " + (item.requester_name || "Child") + " | Category: " + item.category + " | HITL Trigger: " + reason;
 
         const actions = document.createElement("div");
@@ -910,16 +928,19 @@
       });
       const result = await res.json();
       const banner = document.getElementById("kid-verdict");
+      const appliedLimit = result.auto_approval_limit || getRequesterAllowanceLimit(payload.requester_name);
 
       if (result.parent_approval_required) {
         banner.className = "verdict-banner verdict-review";
         banner.textContent = "🛑 Paused for Parent Approval! Because this item is $" +
           Number(result.expense.amount).toFixed(2) + " (" + result.expense.category +
+          ", AI auto-approval limit: $" + Number(appliedLimit).toFixed(0) +
           "), it has been sent to the Parent Portal for sign-off before you buy.";
       } else {
         banner.className = "verdict-banner verdict-auto";
         banner.textContent = "✅ Auto-Approved! '" + result.expense.description +
-          "' ($" + Number(result.expense.amount).toFixed(2) + ") is a necessity under $100.";
+          "' ($" + Number(result.expense.amount).toFixed(2) + ") is a necessity under your $" +
+          Number(appliedLimit).toFixed(0) + " AI allowance.";
       }
 
       document.getElementById("kid-desc").value = "";

@@ -67,11 +67,14 @@ If a user clarifies how an item should be categorized, immediately call `save_ca
 evaluator_agent = Agent(
     name="evaluator_agent",
     model=fast_flash_model,
-    description="Evaluates kids pre-purchase requests and expenses against family approval thresholds and manages Parent HITL stops.",
+    description="Evaluates kids pre-purchase requests and expenses against family approval thresholds ($10 for Son, $30 for Daughter) and manages Parent HITL stops.",
     instruction="""You are the Pre-Purchase Policy Evaluator & Parent Approval Gatekeeper Agent.
 Rules:
-1. Necessities strictly under $100 (< $100.00) are automatically approved (`auto_approved`).
-2. Purchases >= $100.00 OR in 'entertainment' / 'luxury' trigger a Human-in-the-Loop (HITL) Parent Approval stop (`needs_review`).
+1. Per-Child Automatic AI Allowance Limits for Necessities:
+   - Son: Necessities strictly under $10.00 (< $10.00) are automatically approved (`auto_approved`). Purchases >= $10.00 require Parent Approval (`needs_review`).
+   - Daughter: Necessities strictly under $30.00 (< $30.00) are automatically approved (`auto_approved`). Purchases >= $30.00 require Parent Approval (`needs_review`).
+   - Default / General: Necessities strictly under $100.00 (< $100.00) are automatically approved (`auto_approved`).
+2. Any purchase in 'entertainment' or 'luxury' ALWAYS triggers a Human-in-the-Loop (HITL) Parent Approval stop (`needs_review`), regardless of dollar amount.
 3. Use `request_purchase_approval` or `log_expense` for new items, `update_expense_record` for edits, and `resolve_parent_approval` when a parent approves or rejects a pending request.""",
     tools=[
         log_expense,
@@ -111,8 +114,11 @@ root_agent = Agent(
 Your Core Capabilities & Routing Strategy:
 1. **Log Expenses & Kids Pre-Purchase Requests**:
    - Call `log_expense(description, amount, category)` or `request_purchase_approval(description, amount, kid_name, category)` when a child or parent mentions an expense or asks for permission before buying.
-   - Expense < $100 for necessities -> Automatically approved (`auto_approved`).
-   - Expense >= $100 OR for entertainment/luxury -> Paused at the Parent Approval HITL Gate (`needs_review`).
+   - Automatic AI Allowance Limits for Necessities:
+     * **Son**: Necessities `< $10.00` -> Automatically approved (`auto_approved`). `>= $10.00` -> Parent Approval (`needs_review`).
+     * **Daughter**: Necessities `< $30.00` -> Automatically approved (`auto_approved`). `>= $30.00` -> Parent Approval (`needs_review`).
+     * **General / Default**: Necessities `< $100.00` -> Automatically approved (`auto_approved`).
+   - Entertainment or Luxury items ALWAYS require Parent Approval (`needs_review`).
 2. **Parent Approval Resolution (HITL)**:
    - Use `resolve_parent_approval(expense_id, decision, parent_note)` when a parent approves ('approved') or declines ('rejected') a pending purchase request.
 3. **Update Expenses**:

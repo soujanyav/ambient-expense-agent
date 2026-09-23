@@ -40,12 +40,27 @@ from app.tools import (
 
 
 def test_evaluate_policy_rules():
+    # Default threshold (< $100)
     assert evaluate_policy(45.0, "necessity") == "auto_approved"
     assert evaluate_policy(99.99, "necessity") == "auto_approved"
     assert evaluate_policy(100.0, "necessity") == "needs_review"
     assert evaluate_policy(150.0, "necessity") == "needs_review"
     assert evaluate_policy(50.0, "entertainment") == "needs_review"
     assert evaluate_policy(80.0, "luxury") == "needs_review"
+
+    # Son's threshold (< $10)
+    assert evaluate_policy(8.50, "necessity", requester_name="Son") == "auto_approved"
+    assert evaluate_policy(9.99, "necessity", requester_name="Son") == "auto_approved"
+    assert evaluate_policy(10.00, "necessity", requester_name="Son") == "needs_review"
+    assert evaluate_policy(15.00, "necessity", requester_name="Son") == "needs_review"
+    assert evaluate_policy(5.00, "entertainment", requester_name="Son") == "needs_review"
+
+    # Daughter's threshold (< $30)
+    assert evaluate_policy(25.00, "necessity", requester_name="Daughter") == "auto_approved"
+    assert evaluate_policy(29.99, "necessity", requester_name="Daughter") == "auto_approved"
+    assert evaluate_policy(30.00, "necessity", requester_name="Daughter") == "needs_review"
+    assert evaluate_policy(45.00, "necessity", requester_name="Daughter") == "needs_review"
+    assert evaluate_policy(12.00, "entertainment", requester_name="Daughter") == "needs_review"
 
 
 def test_database_crud_and_pii_redaction(tmp_path, monkeypatch):
