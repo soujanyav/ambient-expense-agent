@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family Expense &amp; Pre-Purchase Approval Portal</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-elevated: #334155;
+      --border: #475569;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --kid-accent: #38bdf8;
+      --kid-accent-hover: #0284c7;
+      --parent-accent: #a855f7;
+      --parent-accent-hover: #7e22ce;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid var(--border);
+      padding: 20px 26px;
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      backdrop-filter: blur(10px);
+    }
+
+    .brand h1 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .role-switcher {
+      display: flex;
+      background: #0f172a;
+      padding: 5px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      gap: 6px;
+    }
+
+    .role-btn {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.92rem;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+
+    .role-btn.active-kid {
+      background: var(--kid-accent);
+      color: #0f172a;
+    }
+
+    .role-btn.active-parent {
+      background: var(--parent-accent);
+      color: #ffffff;
+    }
+
+    .badge-counter {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: var(--warning);
+      color: #0f172a;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 22px;
+    }
+
+    .card h2 {
+      font-size: 1.15rem;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card .subtitle {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #cbd5e1;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 13px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-size: 0.94rem;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid var(--kid-accent);
+      border-color: transparent;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 9px;
+      font-weight: 700;
+      font-size: 0.96rem;
+      cursor: pointer;
+      transition: transform 0.1s ease, background 0.2s ease;
+    }
+
+    .btn-kid {
+      background: var(--kid-accent);
+      color: #0f172a;
+    }
+
+    .btn-kid:hover {
+      background: var(--kid-accent-hover);
+      color: #ffffff;
+    }
+
+    .btn-parent {
+      background: var(--parent-accent);
+      color: #ffffff;
+    }
+
+    .btn-parent:hover {
+      background: var(--parent-accent-hover);
+    }
+
+    .verdict-banner {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.92rem;
+      display: none;
+    }
+
+    .verdict-auto {
+      display: block;
+      background: rgba(34, 197, 94, 0.16);
+      border: 1px solid var(--success);
+      color: #86efac;
+    }
+
+    .verdict-review {
+      display: block;
+      background: rgba(245, 158, 11, 0.16);
+      border: 1px solid var(--warning);
+      color: #fde68a;
+    }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    @media (max-width: 760px) {
+      .metrics-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .metric-box {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .metric-box .label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .metric-box .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .expense-item {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .expense-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .expense-title {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .expense-meta {
+      font-size: 0.83rem;
+      color: var(--text-muted);
+    }
+
+    .status-pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .pill-auto_approved, .pill-approved {
+      background: rgba(34, 197, 94, 0.2);
+      color: #86efac;
+      border: 1px solid var(--success);
+    }
+
+    .pill-needs_review {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fde68a;
+      border: 1px solid var(--warning);
+    }
+
+    .pill-rejected {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid var(--danger);
+    }
+
+    .parent-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .parent-note-input {
+      flex: 1;
+      min-width: 180px;
+      padding: 8px 10px;
+      font-size: 0.85rem;
+    }
+
+    .btn-approve {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      background: var(--success);
+      color: #0f172a;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-reject {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      background: var(--danger);
+      color: #ffffff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .savings-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .savings-list li {
+      background: rgba(168, 85, 247, 0.12);
+      border-left: 4px solid var(--parent-accent);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>🌟 Family Expense &amp; Pre-Purchase Approval Hub</h1>
+        <p>Powered by Multi-Agent ADK (Classifier + HITL Policy Evaluator + Spending Analyst Coach)</p>
+      </div>
+      <div class="role-switcher">
+        <button id="tab-kid" class="role-btn active-kid" type="button">
+          🎒 Kids Portal (Ask Before Buying)
+        </button>
+        <button id="tab-parent" class="role-btn" type="button">
+          🛡️ Parent Approval &amp; Savings Coach
+          <span id="pending-badge" class="badge-counter">0</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Top KPI Bar -->
+    <div class="metrics-row">
+      <div class="metric-box">
+        <div class="label">Monthly Approved Spend</div>
+        <div class="value" id="kpi-total">$0.00</div>
+      </div>
+      <div class="metric-box">
+        <div class="label">Needs vs. Wants Ratio</div>
+        <div class="value" id="kpi-ratio">0% / 0%</div>
+      </div>
+      <div class="metric-box">
+        <div class="label">Awaiting Parent Approval</div>
+        <div class="value" id="kpi-pending">0 Items</div>
+      </div>
+      <div class="metric-box">
+        <div class="label">Potential Monthly Savings</div>
+        <div class="value" id="kpi-savings">$0.00</div>
+      </div>
+    </div>
+
+    <!-- KIDS PORTAL -->
+    <section id="view-kid">
+      <div class="grid-2">
+        <div class="card">
+          <h2>🛍️ Ask Before You Buy / Log Expense</h2>
+          <p class="subtitle">
+            Necessities under $100 are approved right away! Purchases $100+ or Fun/Entertainment items go to Mom/Dad for approval first.
+          </p>
+          <form id="kid-form">
+            <div class="form-group">
+              <label for="kid-name">Your Name</label>
+              <input id="kid-name" type="text" value="Alex" maxlength="60" required />
+            </div>
+            <div class="form-group">
+              <label for="kid-desc">What do you want to buy?</label>
+              <input id="kid-desc" type="text" placeholder="e.g., School graphing calculator, Zelda Switch game, Boba tea" maxlength="250" required />
+            </div>
+            <div class="form-group">
+              <label for="kid-amount">Price ($ USD)</label>
+              <input id="kid-amount" type="number" step="0.01" min="0.01" max="10000" placeholder="25.00" required />
+            </div>
+            <div class="form-group">
+              <label for="kid-category">Category (or let AI Auto-Classify)</label>
+              <select id="kid-category">
+                <option value="">✨ Auto-Classify with AI</option>
+                <option value="necessity">📚 Necessity (School, Lunch, Transit, Health)</option>
+                <option value="entertainment">🎮 Entertainment (Games, Movies, Treats, Outings)</option>
+                <option value="luxury">💎 Luxury / Big Wish Item</option>
+              </select>
+            </div>
+            <button type="submit" class="btn-primary btn-kid">
+              🚀 Check Pre-Purchase Approval
+            </button>
+          </form>
+          <div id="kid-verdict" class="verdict-banner"></div>
+        </div>
+
+        <div>
+          <div class="card">
+            <h2>💡 Smart Savings Coach Tips for You</h2>
+            <p class="subtitle">Generated by the Spending Analyst Agent (`spending_analyst_agent`)</p>
+            <ul id="kid-savings-tips" class="savings-list"></ul>
+          </div>
+
+          <div class="card">
+            <h2>📋 My Purchase Requests &amp; Parent Decisions</h2>
+            <p class="subtitle">Live status of your requests and notes from your parents</p>
+            <div id="kid-requests-list" class="item-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PARENT PORTAL -->
+    <section id="view-parent" class="hidden">
+      <div class="grid-2">
+        <div class="card">
+          <h2>🛑 Pending Parent Approvals (HITL Execution Stops)</h2>
+          <p class="subtitle">
+            Purchases paused because they are &ge; $100 or Entertainment/Luxury. Approve or decline with a coaching note for your child.
+          </p>
+          <div id="parent-pending-list" class="item-list"></div>
+        </div>
+
+        <div>
+          <div class="card">
+            <h2>📊 Spending Analysis &amp; Areas to Save (`spending_analyst_agent`)</h2>
+            <p class="subtitle">Deep breakdown of family Needs vs. Wants and savings opportunities</p>
+            <div class="form-group">
+              <label for="savings-slider">Target Discretionary Savings Goal: <span id="savings-pct-label">20%</span></label>
+              <input id="savings-slider" type="range" min="5" max="50" step="5" value="20" />
+            </div>
+            <ul id="parent-savings-tips" class="savings-list"></ul>
+          </div>
+
+          <div class="card">
+            <h2>⚙️ Teach Classifier a Family Category Rule</h2>
+            <p class="subtitle">Automatically classify specific keywords for future kid requests</p>
+            <form id="rule-form">
+              <div class="form-group">
+                <label for="rule-keyword">Item Keyword or Merchant (e.g., soccer cleats, roblox, art supplies)</label>
+                <input id="rule-keyword" type="text" placeholder="soccer cleats" maxlength="80" required />
+              </div>
+              <div class="form-group">
+                <label for="rule-class">Always Classify As</label>
+                <select id="rule-class">
+                  <option value="necessity">Necessity (Auto-approve under $100)</option>
+                  <option value="entertainment">Entertainment (Always require Parent Approval)</option>
+                  <option value="luxury">Luxury (Always require Parent Approval)</option>
+                </select>
+              </div>
+              <button type="submit" class="btn-primary btn-parent">Save Family Category Rule</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const tabKid = document.getElementById("tab-kid");
+    const tabParent = document.getElementById("tab-parent");
+    const viewKid = document.getElementById("view-kid");
+    const viewParent = document.getElementById("view-parent");
+
+    function switchMode(mode) {
+      if (mode === "parent") {
+        viewKid.classList.add("hidden");
+        viewParent.classList.remove("hidden");
+        tabParent.classList.add("active-parent");
+        tabKid.classList.remove("active-kid");
+      } else {
+        viewParent.classList.add("hidden");
+        viewKid.classList.remove("hidden");
+        tabKid.classList.add("active-kid");
+        tabParent.classList.remove("active-parent");
+      }
+    }
+
+    tabKid.addEventListener("click", () => switchMode("kid"));
+    tabParent.addEventListener("click", () => switchMode("parent"));
+
+    if (window.location.pathname.endsWith("/parent")) {
+      switchMode("parent");
+    }
+
+    function createStatusPill(status) {
+      const span = document.createElement("span");
+      span.className = "status-pill pill-" + status;
+      const labels = {
+        auto_approved: "Auto-Approved",
+        needs_review: "Waiting for Parent",
+        approved: "Parent Approved",
+        rejected: "Parent Declined"
+      };
+      span.textContent = labels[status] || status;
+      return span;
+    }
+
+    function renderSavingsList(containerId, items) {
+      const ul = document.getElementById(containerId);
+      ul.replaceChildren();
+      (items || []).forEach((tip) => {
+        const li = document.createElement("li");
+        li.textContent = tip;
+        ul.appendChild(li);
+      });
+    }
+
+    function renderKidRequests(expenses) {
+      const container = document.getElementById("kid-requests-list");
+      container.replaceChildren();
+      if (!expenses || expenses.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "expense-meta";
+        empty.textContent = "No purchases or requests logged yet this month.";
+        container.appendChild(empty);
+        return;
+      }
+
+      expenses.slice().reverse().forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "expense-item";
+
+        const top = document.createElement("div");
+        top.className = "expense-top";
+
+        const title = document.createElement("div");
+        title.className = "expense-title";
+        title.textContent = "#" + item.id + " " + item.description + " — $" + Number(item.amount).toFixed(2);
+
+        top.appendChild(title);
+        top.appendChild(createStatusPill(item.status));
+
+        const meta = document.createElement("div");
+        meta.className = "expense-meta";
+        meta.textContent = "Requested by: " + (item.requester_name || "Child") + " | Category: " + item.category;
+
+        card.appendChild(top);
+        card.appendChild(meta);
+
+        if (item.parent_note) {
+          const note = document.createElement("div");
+          note.className = "expense-meta";
+          note.style.color = "#fde68a";
+          note.textContent = "💬 Parent Note: " + item.parent_note;
+          card.appendChild(note);
+        }
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderParentQueue(pendingItems) {
+      const container = document.getElementById("parent-pending-list");
+      container.replaceChildren();
+      if (!pendingItems || pendingItems.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "expense-meta";
+        empty.textContent = "🎉 All caught up! No pending pre-purchase requests awaiting approval.";
+        container.appendChild(empty);
+        return;
+      }
+
+      pendingItems.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "expense-item";
+
+        const top = document.createElement("div");
+        top.className = "expense-top";
+
+        const title = document.createElement("div");
+        title.className = "expense-title";
+        title.textContent = "#" + item.id + " " + item.description + " ($" + Number(item.amount).toFixed(2) + ")";
+
+        top.appendChild(title);
+        top.appendChild(createStatusPill(item.status));
+
+        const meta = document.createElement("div");
+        meta.className = "expense-meta";
+        const reason = Number(item.amount) >= 100 ? "Amount >= $100 threshold" : "Category is '" + item.category + "'";
+        meta.textContent = "Child: " + (item.requester_name || "Child") + " | Category: " + item.category + " | HITL Trigger: " + reason;
+
+        const actions = document.createElement("div");
+        actions.className = "parent-actions";
+
+        const noteInput = document.createElement("input");
+        noteInput.type = "text";
+        noteInput.className = "parent-note-input";
+        noteInput.placeholder = "Optional coaching note to child...";
+
+        const btnApprove = document.createElement("button");
+        btnApprove.type = "button";
+        btnApprove.className = "btn-approve";
+        btnApprove.textContent = "✅ Approve";
+        btnApprove.addEventListener("click", () => submitParentDecision(item.id, "approved", noteInput.value));
+
+        const btnReject = document.createElement("button");
+        btnReject.type = "button";
+        btnReject.className = "btn-reject";
+        btnReject.textContent = "❌ Decline";
+        btnReject.addEventListener("click", () => submitParentDecision(item.id, "rejected", noteInput.value));
+
+        actions.appendChild(noteInput);
+        actions.appendChild(btnApprove);
+        actions.appendChild(btnReject);
+
+        card.appendChild(top);
+        card.appendChild(meta);
+        card.appendChild(actions);
+        container.appendChild(card);
+      });
+    }
+
+    async function loadDashboard() {
+      const pct = document.getElementById("savings-slider").value || 20;
+      const res = await fetch("/api/family/dashboard?savings_target_pct=" + encodeURIComponent(pct));
+      const data = await res.json();
+
+      document.getElementById("kpi-total").textContent = "$" + Number(data.report.total_spent).toFixed(2);
+      document.getElementById("kpi-ratio").textContent =
+        data.analysis.needs_vs_wants_ratio.needs_pct + "% / " + data.analysis.needs_vs_wants_ratio.wants_pct + "%";
+      document.getElementById("kpi-pending").textContent = data.report.needs_review_count + " Items";
+      document.getElementById("pending-badge").textContent = String(data.report.needs_review_count);
+      document.getElementById("kpi-savings").textContent = "$" + Number(data.analysis.potential_monthly_savings).toFixed(2);
+
+      renderSavingsList("kid-savings-tips", data.analysis.areas_to_save);
+      renderSavingsList("parent-savings-tips", data.analysis.areas_to_save);
+      renderKidRequests(data.report.all_expenses);
+      renderParentQueue(data.report.needs_review_items);
+    }
+
+    document.getElementById("kid-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        requester_name: document.getElementById("kid-name").value,
+        description: document.getElementById("kid-desc").value,
+        amount: parseFloat(document.getElementById("kid-amount").value),
+        category: document.getElementById("kid-category").value
+      };
+
+      const res = await fetch("/api/family/kid-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      const banner = document.getElementById("kid-verdict");
+
+      if (result.parent_approval_required) {
+        banner.className = "verdict-banner verdict-review";
+        banner.textContent = "🛑 Paused for Parent Approval! Because this item is $" +
+          Number(result.expense.amount).toFixed(2) + " (" + result.expense.category +
+          "), it has been sent to the Parent Portal for sign-off before you buy.";
+      } else {
+        banner.className = "verdict-banner verdict-auto";
+        banner.textContent = "✅ Auto-Approved! '" + result.expense.description +
+          "' ($" + Number(result.expense.amount).toFixed(2) + ") is a necessity under $100.";
+      }
+
+      document.getElementById("kid-desc").value = "";
+      document.getElementById("kid-amount").value = "";
+      await loadDashboard();
+    });
+
+    async function submitParentDecision(expenseId, decision, parentNote) {
+      await fetch("/api/family/parent-decision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expense_id: expenseId,
+          decision: decision,
+          parent_note: parentNote
+        })
+      });
+      await loadDashboard();
+    }
+
+    document.getElementById("savings-slider").addEventListener("input", (e) => {
+      document.getElementById("savings-pct-label").textContent = e.target.value + "%";
+      loadDashboard();
+    });
+
+    document.getElementById("rule-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const category_name = document.getElementById("rule-keyword").value;
+      const classification = document.getElementById("rule-class").value;
+      await fetch("/api/family/category-rule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category_name, classification })
+      });
+      document.getElementById("rule-keyword").value = "";
+      await loadDashboard();
+    });
+
+    loadDashboard();
+  </script>
+</body>
+</html>

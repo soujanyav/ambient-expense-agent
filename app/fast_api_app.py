@@ -15,11 +15,14 @@
 import contextlib
 import os
 from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Any
 
 import google.auth
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
+from fastapi.responses import HTMLResponse
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 from google.cloud import logging as google_cloud_logging
@@ -28,17 +31,32 @@ from app.app_utils import services
 from app.app_utils.a2a import attach_a2a_routes
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
+from app.schemas import CategoryRuleInput, ExpenseLogInput, ParentDecisionInput
+from app.tools import (
+    analyze_spending_and_savings,
+    get_monthly_expenses_report,
+    log_expense,
+    resolve_parent_approval,
+    save_category_rule,
+)
 
 load_dotenv()
 setup_telemetry()
-_, project_id = google.auth.default()
-logging_client = google_cloud_logging.Client()
-logger = logging_client.logger(__name__)
+try:
+    _, project_id = google.auth.default()
+    logging_client = google_cloud_logging.Client()
+    logger: Any = logging_client.logger(__name__)
+except Exception:
+    import logging
+
+    logger = logging.getLogger(__name__)
+
 allow_origins = (
     os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
 )
 
 AGENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_INDEX_PATH = Path(__file__).parent / "static" / "index.html"
 
 
 @contextlib.asynccontextmanager
@@ -74,7 +92,75 @@ app: FastAPI = get_fast_api_app(
     lifespan=lifespan,
 )
 app.title = "ambient-expense-agent"
-app.description = "API for interacting with the Agent ambient-expense-agent"
+app.description = "API & Dual-Portal Web UI for Family Expense Tracking & Pre-Purchase Parent Approvals"
+
+
+def _serve_portal_html() -> HTMLResponse:
+    """Serve the Kids & Parent Portal HTML with security headers."""
+    html_content = STATIC_INDEX_PATH.read_text(encoding="utf-8")
+    return HTMLResponse(
+        content=html_content,
+        headers={
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "DENY",
+            "Content-Security-Policy": (
+                "default-src 'self'; style-src 'self' 'unsafe-inline'; "
+                "script-src 'self' 'unsafe-inline'; connect-src 'self'"
+            ),
+        },
+    )
+
+
+@app.get("/ui", response_class=HTMLResponse)
+@app.get("/ui/kid", response_class=HTMLResponse)
+@app.get("/ui/parent", response_class=HTMLResponse)
+def render_family_portal() -> HTMLResponse:
+    """Render the interactive Kids & Parent Expense Approval Web UI."""
+    return _serve_portal_html()
+
+
+@app.get("/api/family/dashboard")
+def get_family_dashboard(
+    month: str = Query(default="", pattern=r"^(\d{4}-\d{2})?$"),
+    savings_target_pct: float = Query(default=20.0, ge=1.0, le=90.0),
+) -> dict[str, Any]:
+    """Return monthly expense report, pending parent HITL queue, and spending analyst coaching insights."""
+    report = get_monthly_expenses_report(month=month)
+    analysis = analyze_spending_and_savings(
+        month=month, savings_target_pct=savings_target_pct
+    )
+    return {"status": "success", "report": report, "analysis": analysis}
+
+
+@app.post("/api/family/kid-request")
+def create_kid_purchase_request(payload: ExpenseLogInput) -> dict[str, Any]:
+    """Endpoint for children to submit a pre-purchase approval request or expense."""
+    return log_expense(
+        description=payload.description,
+        amount=payload.amount,
+        category=payload.category,
+        month=payload.month,
+        requester_name=payload.requester_name,
+    )
+
+
+@app.post("/api/family/parent-decision")
+def submit_parent_approval_decision(payload: ParentDecisionInput) -> dict[str, Any]:
+    """Endpoint for parents to approve or decline a pending kid purchase request in the HITL queue."""
+    return resolve_parent_approval(
+        expense_id=payload.expense_id,
+        decision=payload.decision,
+        parent_note=payload.parent_note,
+    )
+
+
+@app.post("/api/family/category-rule")
+def save_family_category_rule(payload: CategoryRuleInput) -> dict[str, Any]:
+    """Endpoint for parents to teach custom category rules to the classifier."""
+    return save_category_rule(
+        category_name=payload.category_name,
+        classification=payload.classification,
+    )
 
 
 @app.post("/feedback")
@@ -87,7 +173,8 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
     Returns:
         Success message
     """
-    logger.log_struct(feedback.model_dump(), severity="INFO")
+    if hasattr(logger, "log_struct"):
+        logger.log_struct(feedback.model_dump(), severity="INFO")
     return {"status": "success"}
 
 
@@ -95,4 +182,6 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host=host, port=port)

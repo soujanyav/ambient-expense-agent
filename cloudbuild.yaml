@@ -1,0 +1,58 @@
+# Copyright 2026 Google LLC
+# Google Cloud Build CI/CD Pipeline for Ambient Expense Validation Agent
+
+steps:
+  # Step 1: Run Unit & Integration Tests inside uv container
+  - name: "ghcr.io/astral-sh/uv:python3.12-bookworm-slim"
+    id: "unit-and-integration-tests"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        uv sync --frozen
+        uv run pytest tests/unit tests/integration -v
+
+  # Step 2: Build Production Container Image
+  - name: "gcr.io/cloud-builders/docker"
+    id: "build-container-image"
+    args:
+      - "build"
+      - "--build-arg"
+      - "COMMIT_SHA=$COMMIT_SHA"
+      - "-t"
+      - "$_REGION-docker.pkg.dev/$PROJECT_ID/agents/$_SERVICE_NAME:$COMMIT_SHA"
+      - "-t"
+      - "$_REGION-docker.pkg.dev/$PROJECT_ID/agents/$_SERVICE_NAME:latest"
+      - "."
+
+  # Step 3: Push Container Image to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-container-image"
+    args:
+      - "push"
+      - "--all-tags"
+      - "$_REGION-docker.pkg.dev/$PROJECT_ID/agents/$_SERVICE_NAME"
+
+  # Step 4: Deploy Service to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: "deploy-cloud-run"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "$_SERVICE_NAME"
+      - "--image=$_REGION-docker.pkg.dev/$PROJECT_ID/agents/$_SERVICE_NAME:$COMMIT_SHA"
+      - "--region=$_REGION"
+      - "--platform=managed"
+      - "--set-env-vars=GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=global"
+      - "--memory=4Gi"
+      - "--cpu=1"
+      - "--min-instances=1"
+      - "--max-instances=10"
+
+substitutions:
+  _SERVICE_NAME: "ambient-expense-agent"
+  _REGION: "us-central1"
+
+options:
+  logging: CLOUD_LOGGING_ONLY

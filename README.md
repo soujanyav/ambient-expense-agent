@@ -1,71 +1,47 @@
-# Ambient Expense Validation Agent (`ambient-expense-agent`)
+# Ambient Expense Validation & Family Savings Coach Agent (`ambient-expense-agent`)
 
-An intelligent expense validation, tracking, and financial advisory agent built using the **Google Agent Development Kit (ADK)** and powered by **Gemini 3.5 Flash**.
+An intelligent **Family & Kids Expense Tracking, Pre-Purchase Parent Approval (HITL), and Spending Analysis Multi-Agent System** built using the **Google Agent Development Kit (ADK)** (`gemini-3.5-flash` + `gemini-2.5-pro`).
 
-The agent processes user expenses in natural language, classifies them into categories (`necessity` vs. `entertainment`/`luxury`), applies automated approval policies, persists records in a local SQLite database, and generates monthly spending breakdowns with actionable financial advice.
-
----
-
-## 📋 Product Requirements Document (PRD) & Scope
-
-### 1. Product Vision & Overview
-Managing day-to-day personal or corporate expenses often involves tedious manual categorization and delayed policy compliance checks. The **Ambient Expense Validation Agent** acts as an always-on financial assistant that logs expenses conversationally in a single low-latency turn, enforces deterministic approval policies, learns user-specific category preferences, and delivers monthly budget optimization insights.
-
-### 2. Core Functional Scope
-1. **Conversational Expense Logging (`log_expense`)**
-   - Extracts expense `description`, `amount`, `category`, and `month` (`YYYY-MM`) from natural language inputs.
-   - Automatically classifies expenses when a category is not explicitly provided using:
-     1. Stored user category preferences in SQLite (`category_preferences` table).
-     2. Fast keyword heuristics (e.g., groceries, milk, rent, utilities, medicine $\rightarrow$ `necessity`; concert, movie, restaurant, spa, vacation $\rightarrow$ `entertainment`).
-2. **Deterministic Policy Evaluation (`evaluate_policy`)**
-   - **`auto_approved`**: Expenses strictly under **$100.00** (`< $100`) AND categorized as **`necessity`**.
-   - **`needs_review`**: Any expense **$\ge$ $100.00** OR categorized as **`entertainment`** or **`luxury`**.
-3. **Expense Record Management (`update_expense_record`)**
-   - Updates existing expense entries by ID (`description`, `amount`, or `category`).
-   - Automatically re-evaluates the approval status (`auto_approved` vs. `needs_review`) whenever an amount or category is modified.
-4. **Custom Category Rule Learning (`save_category_rule`)**
-   - Persists user clarifications or custom preferences (e.g., classifying a specific merchant or item type as `necessity` or `entertainment`) for future automated classification.
-5. **Monthly Reporting & Financial Advisory (`get_monthly_expenses_report`)**
-   - Aggregates monthly expenses (`YYYY-MM`) with total spend, item counts, and category-wise totals.
-   - Separates `auto_approved` items from `needs_review` items requiring human attention.
-   - Synthesizes actionable financial advice on reducing discretionary spend and optimizing budget allocation.
-
-### 3. Example Use Cases
-| Scenario | Example User Prompt | Classification & Policy Outcome |
-| :--- | :--- | :--- |
-| **Necessity < $100** | *"I spent $45 on groceries today."* | Classified as `necessity` $\rightarrow$ **`auto_approved`** |
-| **Luxury / Entertainment** | *"Spent $80 on concert tickets."* | Classified as `entertainment` $\rightarrow$ **`needs_review`** |
-| **High-Value Necessity ($\ge$ $100)** | *"Paid $150 for a desk chair."* | Classified as `necessity`, amount $\ge$ $100 $\rightarrow$ **`needs_review`** |
-| **Expense Modification** | *"Update expense #3 amount to $60."* | Updated in DB, policy re-evaluated $\rightarrow$ status updated |
-| **Category Rule Preference** | *"Always classify gym memberships as a necessity."* | Rule saved in `category_preferences` table |
-| **Monthly Summary & Advice** | *"Show me my expenses for this month and how I can save."* | Returns category breakdown, `needs_review` list, and savings advice |
-
-### 4. Constraints, Guardrails & Success Criteria
-- **Strict Policy Adherence**: 100% deterministic compliance on threshold rules (`< $100` necessity $\rightarrow$ `auto_approved`; `>= $100` or `entertainment`/`luxury` $\rightarrow$ `needs_review`).
-- **Low-Latency Single-Turn Execution**: Root orchestrator (`ambient_expense_agent`) executes tools directly without unnecessary sub-agent handoff overhead.
-- **Persistent State**: All expenses and learned category rules are persisted in SQLite (`data/expenses.db` across `expenses` and `category_preferences` tables).
+Includes a **Dual-Portal Web UI (`/ui`)**:
+- **🎒 Kids Pre-Purchase Portal (`/ui/kid`)**: Children ask permission before buying or log expenses. Necessities under `$100` are auto-approved; items `>= $100` or in `entertainment`/`luxury` pause at a **Parent Human-in-the-Loop (HITL) Approval Gate**.
+- **🛡️ Parent Approval & Savings Coach Portal (`/ui/parent`)**: Parents approve or decline pending requests with coaching notes, configure custom family category rules, and view **Spending Analyst (`spending_analyst_agent`)** insights on **Needs vs. Wants** and **Areas to Save**.
 
 ---
 
-## 🏗️ Architecture & Project Structure
+## 📋 Product Requirements Document (PRD) & Multi-Agent Architecture
 
+### 1. Multi-Agent Hierarchy & Strategic Model Routing
+1. **`root_agent` (`ambient_expense_agent` — `gemini-3.5-flash`)**
+   - Orchestrates requests across specialized sub-agents and provides direct low-latency tool execution.
+2. **`classifier_agent` (`gemini-3.5-flash`)**
+   - Classifies items into `necessity`, `entertainment`, or `luxury` using stored family rules (`category_preferences`) and fast keyword heuristics, and learns new rules via `save_category_rule`.
+3. **`evaluator_agent` (`gemini-3.5-flash` + Parent HITL Gatekeeper)**
+   - Enforces deterministic family approval policies (`log_expense`, `request_purchase_approval`, `update_expense_record`, `resolve_parent_approval`):
+     - **`auto_approved`**: Expenses strictly `< $100.00` AND categorized as `necessity`.
+     - **`needs_review` (Parent HITL Execution Stop)**: Expenses `>= $100.00` OR categorized as `entertainment` / `luxury` trigger `tool_context.request_confirmation` and hold for parent sign-off.
+4. **`spending_analyst_agent` (`gemini-2.5-pro` — High-Reasoning Savings Coach)**
+   - Uses `analyze_spending_and_savings` and `get_monthly_expenses_report` to calculate **Needs vs. Wants (%)**, pinpoint top discretionary spending drains, compute monthly/annual savings projections, and generate kid-friendly financial coaching tips.
+
+### 2. Enterprise Engineering & Rubric Highlights
+- **Strict Pydantic Validation & Error Recovery (`app/schemas.py`)**: All tool inputs/outputs are validated with `BaseModel` (`Field` constraints) and return explicit `recovery_instruction` + `suggested_next_tool` guidance on errors.
+- **Sliding-Window History Compaction & Context Caching (`app/memory.py`)**: `before_model_guardrail_callback` compacts older conversation turns into `session.state["compacted_history_summary"]` and caches static system context + preferences.
+- **Non-Blocking Async Memory Operations (`app/database.py`)**: Background `asyncio` / thread-pool write queue (`schedule_background_memory_task`) ensures audit and preference persistence never blocks the UI.
+- **PII Redaction & Intent-vs-Outcome Tracing (`app/app_utils/telemetry.py`)**: Deterministic `redact_pii` scrubs credit cards, SSNs, emails, phones, and bank accounts prior to SQLite storage or Cloud Logging, while `record_intent_vs_outcome` logs structured JSON (`AGENT_INTENT_VS_OUTCOME_AUDIT`) and OpenTelemetry span attributes.
+- **CI/CD & Hardened Container (`.github/workflows/`, `cloudbuild.yaml`, `Dockerfile`)**: Automated lint/test/deploy pipelines with Workload Identity Federation and a non-root `Dockerfile` with `HEALTHCHECK`.
+
+---
+
+## 🖥️ Launching the Kids & Parent Web UI
+
+Start the server locally:
+```bash
+uv run uvicorn app.fast_api_app:app --host 127.0.0.1 --port 8000
 ```
-ambient-expense-agent/
-├── app/                       # Core agent application
-│   ├── agent.py               # Root ADK Agent definition (Gemini 3.5 Flash)
-│   ├── tools.py               # Expense tools, policy engine & fast classifier
-│   ├── database.py            # SQLite persistence layer (expenses & preferences)
-│   ├── fast_api_app.py        # FastAPI / A2A backend server
-│   └── app_utils/             # Telemetry, typing, and service helpers
-├── tests/                     # Unit, integration, and evaluation suites
-│   ├── unit/                  # Policy & database unit tests
-│   ├── integration/           # End-to-end agent & server tests
-│   └── eval/                  # Evaluation datasets (25 & 50 cases) & configs
-├── deployment/                # Terraform infrastructure templates
-├── scripts/                   # Dataset generation utilities
-├── GEMINI.md                  # AI-assisted development guide
-└── pyproject.toml             # Project dependencies & configuration
-```
+Then open:
+- **Unified Portal Switcher**: `http://127.0.0.1:8000/ui`
+- **Kids Pre-Purchase Portal**: `http://127.0.0.1:8000/ui/kid`
+- **Parent Approval & Savings Coach Portal**: `http://127.0.0.1:8000/ui/parent`
+
 
 > 💡 **Tip:** Use [Antigravity CLI](https://antigravity.google/) for AI-assisted development - project context is pre-configured in `GEMINI.md`.
 
