@@ -1,0 +1,9 @@
+# Reference Git Repositories
+
+# Google Cloud Specialized Training Content
+git clone https://github.com/GoogleCloudPlatform/specialized-training-content.git
+cd specialized-training-content
+
+# Ambient Expense Validation & Family Savings Coach Agent
+git clone git@github.com:soujanyav/ambient-expense-agent.git
+cd ambient-expense-agent
