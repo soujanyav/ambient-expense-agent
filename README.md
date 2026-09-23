@@ -42,6 +42,15 @@ Then open:
 - **Kids Pre-Purchase Portal**: `http://127.0.0.1:8000/ui/kid`
 - **Parent Approval & Savings Coach Portal**: `http://127.0.0.1:8000/ui/parent`
 
+### 🔐 Family Login Accounts (Salted `scrypt` Hashed + RBAC)
+| Username | Role | Portal Access & Permissions | Initial Strong Password |
+| :--- | :--- | :--- | :--- |
+| **`mother`** | `parent` | Full access to **Parent Approval Queue**, Approve/Decline HITL decisions, Family Rules & Kids View | `Mom$SmartSave2026!` |
+| **`father`** | `parent` | Full access to **Parent Approval Queue**, Approve/Decline HITL decisions, Family Rules & Kids View | `Dad$SmartSave2026!` |
+| **`daughter`** | `child` | **Kids Pre-Purchase Portal** (submit requests, view savings coach & parent feedback; cannot self-approve) | `Girl$SaveGoal2026!` |
+| **`son`** | `child` | **Kids Pre-Purchase Portal** (submit requests, view savings coach & parent feedback; cannot self-approve) | `Boy$SaveGoal2026!` |
+
+
 
 > 💡 **Tip:** Use [Antigravity CLI](https://antigravity.google/) for AI-assisted development - project context is pre-configured in `GEMINI.md`.
 

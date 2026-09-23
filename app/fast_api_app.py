@@ -21,7 +21,7 @@ from typing import Any
 import google.auth
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
-from fastapi import FastAPI, Query
+from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
@@ -31,6 +31,16 @@ from app.app_utils import services
 from app.app_utils.a2a import attach_a2a_routes
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
+from app.auth import (
+    SESSION_COOKIE_NAME,
+    SESSION_TTL_SECONDS,
+    LoginRequest,
+    authenticate_family_user,
+    get_session_user,
+    init_auth_tables,
+    invalidate_session,
+    require_parent_role,
+)
 from app.schemas import CategoryRuleInput, ExpenseLogInput, ParentDecisionInput
 from app.tools import (
     analyze_spending_and_savings,
@@ -64,6 +74,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from app.agent import app as adk_app
     from app.agent import root_agent
 
+    init_auth_tables()
     runner = Runner(
         app=adk_app,
         session_service=services.get_session_service(),
@@ -97,6 +108,7 @@ app.description = "API & Dual-Portal Web UI for Family Expense Tracking & Pre-Pu
 
 def _serve_portal_html() -> HTMLResponse:
     """Serve the Kids & Parent Portal HTML with security headers."""
+    init_auth_tables()
     html_content = STATIC_INDEX_PATH.read_text(encoding="utf-8")
     return HTMLResponse(
         content=html_content,
@@ -119,6 +131,70 @@ def render_family_portal() -> HTMLResponse:
     return _serve_portal_html()
 
 
+@app.post("/api/auth/login")
+def login_family_member(payload: LoginRequest, response: Response) -> dict[str, Any]:
+    """Authenticate 'mother', 'father', 'daughter', or 'son' and issue an HttpOnly session cookie."""
+    session = authenticate_family_user(payload.username, payload.password)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password.",
+        )
+
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session["token"],
+        max_age=SESSION_TTL_SECONDS,
+        httponly=True,
+        samesite="lax",
+    )
+    return {
+        "status": "success",
+        "token": session["token"],
+        "user": {
+            "username": session["username"],
+            "display_name": session["display_name"],
+            "role": session["role"],
+        },
+    }
+
+
+@app.post("/api/auth/logout")
+def logout_family_member(
+    response: Response,
+    family_session_id: str | None = Cookie(default=None),
+    authorization: str | None = Header(default=None),
+) -> dict[str, str]:
+    """Invalidate active session token and clear session cookie."""
+    token = family_session_id
+    if not token and authorization and authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+    invalidate_session(token)
+    response.delete_cookie(key=SESSION_COOKIE_NAME)
+    return {"status": "logged_out"}
+
+
+@app.get("/api/auth/me")
+def get_current_family_member(
+    family_session_id: str | None = Cookie(default=None),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Return the currently authenticated family member and role."""
+    user = get_session_user(
+        family_session_id=family_session_id, authorization=authorization
+    )
+    if not user:
+        return {"authenticated": False, "user": None}
+    return {
+        "authenticated": True,
+        "user": {
+            "username": user["username"],
+            "display_name": user["display_name"],
+            "role": user["role"],
+        },
+    }
+
+
 @app.get("/api/family/dashboard")
 def get_family_dashboard(
     month: str = Query(default="", pattern=r"^(\d{4}-\d{2})?$"),
@@ -133,30 +209,53 @@ def get_family_dashboard(
 
 
 @app.post("/api/family/kid-request")
-def create_kid_purchase_request(payload: ExpenseLogInput) -> dict[str, Any]:
+def create_kid_purchase_request(
+    payload: ExpenseLogInput,
+    family_session_id: str | None = Cookie(default=None),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
     """Endpoint for children to submit a pre-purchase approval request or expense."""
+    session_user = get_session_user(
+        family_session_id=family_session_id, authorization=authorization
+    )
+    effective_requester = (
+        session_user["display_name"]
+        if session_user and payload.requester_name in {"Child", ""}
+        else payload.requester_name
+    )
     return log_expense(
         description=payload.description,
         amount=payload.amount,
         category=payload.category,
         month=payload.month,
-        requester_name=payload.requester_name,
+        requester_name=effective_requester,
     )
 
 
 @app.post("/api/family/parent-decision")
-def submit_parent_approval_decision(payload: ParentDecisionInput) -> dict[str, Any]:
-    """Endpoint for parents to approve or decline a pending kid purchase request in the HITL queue."""
+def submit_parent_approval_decision(
+    payload: ParentDecisionInput,
+    parent_user: dict[str, Any] = Depends(require_parent_role),
+) -> dict[str, Any]:
+    """Parent-only RBAC endpoint ('mother' or 'father') to approve or decline a pending kid purchase request."""
+    signed_note = (
+        f"[{parent_user['display_name']}] {payload.parent_note}".strip()
+        if payload.parent_note
+        else f"Reviewed by {parent_user['display_name']}"
+    )
     return resolve_parent_approval(
         expense_id=payload.expense_id,
         decision=payload.decision,
-        parent_note=payload.parent_note,
+        parent_note=signed_note,
     )
 
 
 @app.post("/api/family/category-rule")
-def save_family_category_rule(payload: CategoryRuleInput) -> dict[str, Any]:
-    """Endpoint for parents to teach custom category rules to the classifier."""
+def save_family_category_rule(
+    payload: CategoryRuleInput,
+    _parent_user: dict[str, Any] = Depends(require_parent_role),
+) -> dict[str, Any]:
+    """Parent-only RBAC endpoint ('mother' or 'father') to teach custom category rules to the classifier."""
     return save_category_rule(
         category_name=payload.category_name,
         classification=payload.classification,

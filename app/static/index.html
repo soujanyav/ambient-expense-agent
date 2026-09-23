@@ -50,21 +50,51 @@
       gap: 16px;
       background: rgba(30, 41, 59, 0.85);
       border: 1px solid var(--border);
-      padding: 20px 26px;
+      padding: 18px 24px;
       border-radius: var(--radius);
       margin-bottom: 24px;
       backdrop-filter: blur(10px);
     }
 
     .brand h1 {
-      font-size: 1.45rem;
+      font-size: 1.35rem;
       font-weight: 700;
       letter-spacing: -0.02em;
     }
 
     .brand p {
-      font-size: 0.9rem;
+      font-size: 0.86rem;
       color: var(--text-muted);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .btn-logout {
+      background: rgba(239, 68, 68, 0.18);
+      color: #fca5a5;
+      border: 1px solid var(--danger);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
     }
 
     .role-switcher {
@@ -77,11 +107,11 @@
     }
 
     .role-btn {
-      padding: 10px 18px;
+      padding: 9px 16px;
       border: none;
       border-radius: 8px;
       font-weight: 600;
-      font-size: 0.92rem;
+      font-size: 0.9rem;
       cursor: pointer;
       background: transparent;
       color: var(--text-muted);
@@ -103,10 +133,90 @@
       margin-left: 6px;
       padding: 2px 8px;
       border-radius: 999px;
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 700;
       background: var(--warning);
       color: #0f172a;
+    }
+
+    /* Login Modal Overlay */
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      padding: 20px;
+    }
+
+    .login-card {
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      max-width: 520px;
+      width: 100%;
+      padding: 28px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    }
+
+    .login-card h2 {
+      font-size: 1.35rem;
+      margin-bottom: 6px;
+    }
+
+    .login-card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+
+    .quick-accounts {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .acct-btn {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      text-align: left;
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .acct-btn:hover {
+      border-color: var(--kid-accent);
+      transform: translateY(-1px);
+    }
+
+    .acct-btn .acct-title {
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+
+    .acct-btn .acct-pw {
+      font-family: monospace;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .login-error {
+      background: rgba(239, 68, 68, 0.18);
+      border: 1px solid var(--danger);
+      color: #fca5a5;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.86rem;
+      margin-bottom: 14px;
+      display: none;
     }
 
     .grid-2 {
@@ -370,20 +480,67 @@
   </style>
 </head>
 <body>
+  <!-- Family Login Modal -->
+  <div id="login-modal" class="login-overlay">
+    <div class="login-card">
+      <h2>🔐 Family Portal Sign In</h2>
+      <p>Select a family profile below (or type credentials) to access the Kids or Parent Approval Portal:</p>
+
+      <div class="quick-accounts">
+        <button type="button" class="acct-btn" data-user="mother" data-pw="Mom$SmartSave2026!">
+          <div class="acct-title">👩 mother (Parent)</div>
+          <div class="acct-pw">Mom$SmartSave2026!</div>
+        </button>
+        <button type="button" class="acct-btn" data-user="father" data-pw="Dad$SmartSave2026!">
+          <div class="acct-title">👨 father (Parent)</div>
+          <div class="acct-pw">Dad$SmartSave2026!</div>
+        </button>
+        <button type="button" class="acct-btn" data-user="daughter" data-pw="Girl$SaveGoal2026!">
+          <div class="acct-title">👧 daughter (Child)</div>
+          <div class="acct-pw">Girl$SaveGoal2026!</div>
+        </button>
+        <button type="button" class="acct-btn" data-user="son" data-pw="Boy$SaveGoal2026!">
+          <div class="acct-title">👦 son (Child)</div>
+          <div class="acct-pw">Boy$SaveGoal2026!</div>
+        </button>
+      </div>
+
+      <div id="login-error-box" class="login-error"></div>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-username">Username</label>
+          <input id="login-username" type="text" placeholder="mother, father, daughter, or son" required />
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" placeholder="Enter password" required />
+        </div>
+        <button type="submit" class="btn-primary btn-parent">Sign In to Family Hub</button>
+      </form>
+    </div>
+  </div>
+
   <div class="container">
     <header>
       <div class="brand">
         <h1>🌟 Family Expense &amp; Pre-Purchase Approval Hub</h1>
         <p>Powered by Multi-Agent ADK (Classifier + HITL Policy Evaluator + Spending Analyst Coach)</p>
       </div>
-      <div class="role-switcher">
-        <button id="tab-kid" class="role-btn active-kid" type="button">
-          🎒 Kids Portal (Ask Before Buying)
-        </button>
-        <button id="tab-parent" class="role-btn" type="button">
-          🛡️ Parent Approval &amp; Savings Coach
-          <span id="pending-badge" class="badge-counter">0</span>
-        </button>
+      <div class="header-controls">
+        <div class="user-chip">
+          <span id="signed-in-label">Not signed in</span>
+          <button id="btn-signout" type="button" class="btn-logout">Switch User</button>
+        </div>
+        <div class="role-switcher">
+          <button id="tab-kid" class="role-btn active-kid" type="button">
+            🎒 Kids Portal (Ask Before Buying)
+          </button>
+          <button id="tab-parent" class="role-btn" type="button">
+            🛡️ Parent Approval &amp; Savings Coach
+            <span id="pending-badge" class="badge-counter">0</span>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -417,8 +574,8 @@
           </p>
           <form id="kid-form">
             <div class="form-group">
-              <label for="kid-name">Your Name</label>
-              <input id="kid-name" type="text" value="Alex" maxlength="60" required />
+              <label for="kid-name">Requested By</label>
+              <input id="kid-name" type="text" value="Daughter" maxlength="60" required />
             </div>
             <div class="form-group">
               <label for="kid-desc">What do you want to buy?</label>
@@ -466,7 +623,7 @@
         <div class="card">
           <h2>🛑 Pending Parent Approvals (HITL Execution Stops)</h2>
           <p class="subtitle">
-            Purchases paused because they are &ge; $100 or Entertainment/Luxury. Approve or decline with a coaching note for your child.
+            Purchases paused because they are &ge; $100 or Entertainment/Luxury. Only 'mother' or 'father' can approve or decline.
           </p>
           <div id="parent-pending-list" class="item-list"></div>
         </div>
@@ -507,13 +664,26 @@
   </div>
 
   <script>
+    let currentUser = null;
     const tabKid = document.getElementById("tab-kid");
     const tabParent = document.getElementById("tab-parent");
     const viewKid = document.getElementById("view-kid");
     const viewParent = document.getElementById("view-parent");
+    const loginModal = document.getElementById("login-modal");
+
+    document.querySelectorAll(".acct-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.getElementById("login-username").value = btn.getAttribute("data-user");
+        document.getElementById("login-password").value = btn.getAttribute("data-pw");
+      });
+    });
 
     function switchMode(mode) {
       if (mode === "parent") {
+        if (!currentUser || currentUser.role !== "parent") {
+          alert("🔒 Access Restricted: Only 'mother' or 'father' can access the Parent Approval Portal. Click 'Switch User' to sign in as a parent.");
+          return;
+        }
         viewKid.classList.add("hidden");
         viewParent.classList.remove("hidden");
         tabParent.classList.add("active-parent");
@@ -529,9 +699,59 @@
     tabKid.addEventListener("click", () => switchMode("kid"));
     tabParent.addEventListener("click", () => switchMode("parent"));
 
-    if (window.location.pathname.endsWith("/parent")) {
-      switchMode("parent");
+    function applyUserSession(user) {
+      currentUser = user;
+      if (!user) {
+        loginModal.classList.remove("hidden");
+        return;
+      }
+      loginModal.classList.add("hidden");
+      const roleIcon = user.role === "parent" ? "🛡️ Parent" : "🎒 Child";
+      document.getElementById("signed-in-label").textContent =
+        user.display_name + " (" + roleIcon + ")";
+
+      const kidNameInput = document.getElementById("kid-name");
+      if (user.role === "child") {
+        kidNameInput.value = user.display_name;
+        kidNameInput.readOnly = true;
+        switchMode("kid");
+      } else {
+        kidNameInput.readOnly = false;
+        switchMode("parent");
+      }
     }
+
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errBox = document.getElementById("login-error-box");
+      errBox.style.display = "none";
+
+      const username = document.getElementById("login-username").value;
+      const password = document.getElementById("login-password").value;
+
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        errBox.textContent = errData.detail || "Invalid credentials";
+        errBox.style.display = "block";
+        return;
+      }
+
+      const data = await res.json();
+      applyUserSession(data.user);
+      await loadDashboard();
+    });
+
+    document.getElementById("btn-signout").addEventListener("click", async () => {
+      await fetch("/api/auth/logout", { method: "POST" });
+      currentUser = null;
+      loginModal.classList.remove("hidden");
+    });
 
     function createStatusPill(status) {
       const span = document.createElement("span");
@@ -713,7 +933,7 @@
     });
 
     async function submitParentDecision(expenseId, decision, parentNote) {
-      await fetch("/api/family/parent-decision", {
+      const res = await fetch("/api/family/parent-decision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -722,6 +942,11 @@
           parent_note: parentNote
         })
       });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.detail || "Only parents can approve or decline requests.");
+        return;
+      }
       await loadDashboard();
     }
 
@@ -734,16 +959,30 @@
       e.preventDefault();
       const category_name = document.getElementById("rule-keyword").value;
       const classification = document.getElementById("rule-class").value;
-      await fetch("/api/family/category-rule", {
+      const res = await fetch("/api/family/category-rule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category_name, classification })
       });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.detail || "Only parents can save category rules.");
+        return;
+      }
       document.getElementById("rule-keyword").value = "";
       await loadDashboard();
     });
 
-    loadDashboard();
+    async function checkInitialAuth() {
+      const res = await fetch("/api/auth/me");
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        applyUserSession(data.user);
+      }
+      await loadDashboard();
+    }
+
+    checkInitialAuth();
   </script>
 </body>
 </html>

@@ -193,13 +193,23 @@ def test_family_portal_web_ui_and_endpoints(tmp_path, monkeypatch):
     client = TestClient(fastapi_app)
     ui_res = client.get("/ui")
     assert ui_res.status_code == 200
-    assert "Kids Portal" in ui_res.text
-    assert "Parent Approval" in ui_res.text
+    assert "Family Portal Sign In" in ui_res.text
 
+    # 1. Daughter logs in
+    daughter_login = client.post(
+        "/api/auth/login",
+        json={"username": "daughter", "password": "Girl$SaveGoal2026!"},
+    )
+    assert daughter_login.status_code == 200
+    daughter_token = daughter_login.json()["token"]
+    assert daughter_login.json()["user"]["role"] == "child"
+
+    # 2. Daughter submits a pre-purchase request for Roblox Coins ($35 entertainment)
     kid_req = client.post(
         "/api/family/kid-request",
+        headers={"Authorization": f"Bearer {daughter_token}"},
         json={
-            "requester_name": "Maya",
+            "requester_name": "Child",
             "description": "Roblox Coins",
             "amount": 35.0,
             "category": "entertainment",
@@ -207,7 +217,40 @@ def test_family_portal_web_ui_and_endpoints(tmp_path, monkeypatch):
     )
     assert kid_req.status_code == 200
     assert kid_req.json()["parent_approval_required"] is True
+    expense_id = kid_req.json()["expense"]["id"]
+    assert kid_req.json()["expense"]["requester_name"] == "Daughter"
+
+    # 3. Daughter attempts to approve her own purchase -> 403 Forbidden (RBAC)
+    forbidden_res = client.post(
+        "/api/family/parent-decision",
+        headers={"Authorization": f"Bearer {daughter_token}"},
+        json={"expense_id": expense_id, "decision": "approved", "parent_note": "Self approve"},
+    )
+    assert forbidden_res.status_code == 403
+
+    # 4. Mother logs in and approves Daughter's request
+    mother_login = client.post(
+        "/api/auth/login",
+        json={"username": "mother", "password": "Mom$SmartSave2026!"},
+    )
+    assert mother_login.status_code == 200
+    mother_token = mother_login.json()["token"]
+    assert mother_login.json()["user"]["role"] == "parent"
+
+    parent_approve = client.post(
+        "/api/family/parent-decision",
+        headers={"Authorization": f"Bearer {mother_token}"},
+        json={
+            "expense_id": expense_id,
+            "decision": "approved",
+            "parent_note": "Great job finishing your homework!",
+        },
+    )
+    assert parent_approve.status_code == 200
+    assert parent_approve.json()["expense"]["status"] == "approved"
+    assert "[Mother]" in parent_approve.json()["expense"]["parent_note"]
 
     dash = client.get("/api/family/dashboard").json()
-    assert dash["report"]["needs_review_count"] == 1
+    assert dash["report"]["parent_approved_count"] == 1
     assert dash["analysis"]["discretionary_spend"] == 35.0
+
